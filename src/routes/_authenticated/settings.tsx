@@ -84,6 +84,10 @@ function SettingsPage() {
         can_spam_signature: data.can_spam_signature,
         gdpr_tracking: data.gdpr_tracking,
         call_recording_default: data.call_recording_default,
+        data_retention_days: data.data_retention_days,
+        voice_provider: data.voice_provider,
+        voice_gender: data.voice_gender,
+        voice_accent: data.voice_accent,
       });
     }
   }, [data]);
