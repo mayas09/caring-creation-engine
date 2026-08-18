@@ -32,7 +32,7 @@ export async function buildBrief(supabase: SupabaseClient, userId: string): Prom
 
   const sent = (msgs ?? []).filter((m) => inYesterday(m.sent_at)).length;
   const replied = (msgs ?? []).filter((m) => inYesterday(m.replied_at)).length;
-  const bounced = (msgs ?? []).filter((m) => m.status === "bounced" && inYesterday(m.sent_at)).length;
+  const bounced = (msgs ?? []).filter((m) => m.status === "failed" && inYesterday(m.sent_at)).length;
   const callsY = (calls ?? []).filter((c) => inYesterday(c.created_at)).length;
   const demos = (leads ?? []).filter((l) => l.stage === "demo_scheduled").length;
 
