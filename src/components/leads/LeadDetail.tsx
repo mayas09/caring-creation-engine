@@ -2,13 +2,15 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Wand2, Search } from "lucide-react";
+import { Wand2, Search, Check, X, ShieldAlert, PhoneCall } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ClaimRow, EvidenceBadge, FreshnessTag } from "@/components/evidence/EvidenceBadge";
 import { CLASSIFICATION_LABEL, STAGE_LABEL, type EvidenceType } from "@/lib/evidence";
 import { generateOutreach, runLeadAudit } from "@/lib/research.functions";
+import { decideLead, qualifyLead } from "@/lib/discovery.functions";
+import { generateCallScript } from "@/lib/voice.functions";
 
 type DraftResult = { subject: string; body: string; passed: boolean; issues: string[] };
 
@@ -19,6 +21,13 @@ export function LeadDetail({ leadId }: { leadId: string }) {
   const [draftResult, setDraftResult] = useState<DraftResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [auditing, setAuditing] = useState(false);
+  const [rejectReason, setRejectReason] = useState<"location" | "industry" | "signal_quality" | "other">(
+    "signal_quality",
+  );
+  const decide = useServerFn(decideLead);
+  const qualify = useServerFn(qualifyLead);
+  const script = useServerFn(generateCallScript);
+  const [scriptText, setScriptText] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["lead", leadId],
@@ -79,6 +88,41 @@ export function LeadDetail({ leadId }: { leadId: string }) {
     }
   }
 
+  async function decideNow(decision: "approved" | "rejected") {
+    try {
+      await decide({ data: { leadId, decision, reason: decision === "rejected" ? rejectReason : "" } });
+      toast.success(decision === "approved" ? "Lead approved." : "Lead rejected — reason logged.");
+      void qc.invalidateQueries({ queryKey: ["lead", leadId] });
+      void qc.invalidateQueries({ queryKey: ["leads"] });
+      void qc.invalidateQueries({ queryKey: ["pending_leads"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  }
+
+  async function runQualify() {
+    try {
+      const res = await qualify({ data: { leadId } });
+      toast[res.badFit ? "warning" : "success"](
+        res.badFit ? `Do not contact — ${res.reasons.join("; ")}` : "Opportunity is evidence-backed.",
+      );
+      void qc.invalidateQueries({ queryKey: ["lead", leadId] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  }
+
+  async function makeScript() {
+    try {
+      const res = await script({ data: { leadId } });
+      setScriptText(res.script);
+      toast.success("Call script generated from verified evidence only.");
+      void qc.invalidateQueries({ queryKey: ["calls"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  }
+
   return (
     <div className="space-y-5 p-5">
       <header className="space-y-1">
@@ -95,6 +139,46 @@ export function LeadDetail({ leadId }: { leadId: string }) {
           </span>
         </div>
       </header>
+
+      <Section title="Why this lead?">
+        {(lead.why_this_lead as string[] | null)?.length ? (
+          <ol className="list-decimal space-y-1 pl-4 text-sm">
+            {(lead.why_this_lead as string[]).map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ol>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            <EvidenceBadge type="unknown" /> No evidence-backed reason recorded yet. Run the audit — if the
+            answer stays empty, the correct call is "do not contact".
+          </p>
+        )}
+        {lead.best_angle && (
+          <p className="pt-2 text-xs text-muted-foreground">Best outreach angle: {lead.best_angle}</p>
+        )}
+        <div className="flex flex-wrap items-center gap-2 pt-3">
+          <span className="text-[11px] text-muted-foreground">Approval: {lead.approval_status}</span>
+          <Button size="sm" variant="outline" onClick={() => void decideNow("approved")}>
+            <Check className="size-4" /> Approve
+          </Button>
+          <select
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value as typeof rejectReason)}
+            className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+          >
+            <option value="location">Location</option>
+            <option value="industry">Industry</option>
+            <option value="signal_quality">Signal quality</option>
+            <option value="other">Other</option>
+          </select>
+          <Button size="sm" variant="outline" onClick={() => void decideNow("rejected")}>
+            <X className="size-4" /> Reject
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => void runQualify()}>
+            <ShieldAlert className="size-4" /> Negative qualification
+          </Button>
+        </div>
+      </Section>
 
       <Section title="Contact & presence">
         <ClaimRow
@@ -210,7 +294,15 @@ export function LeadDetail({ leadId }: { leadId: string }) {
           <Button size="sm" onClick={() => void generate()} disabled={busy || lead.do_not_contact}>
             <Wand2 className="size-4" /> {busy ? "Drafting…" : "Draft verified outreach"}
           </Button>
+          <Button size="sm" variant="outline" onClick={() => void makeScript()} disabled={lead.do_not_contact}>
+            <PhoneCall className="size-4" /> Call script
+          </Button>
         </div>
+        {scriptText && (
+          <pre className="whitespace-pre-wrap rounded-md border border-border p-3 text-xs leading-relaxed">
+            {scriptText}
+          </pre>
+        )}
         {lead.do_not_contact && (
           <p className="text-xs text-danger">Marked do-not-contact — outreach is blocked.</p>
         )}

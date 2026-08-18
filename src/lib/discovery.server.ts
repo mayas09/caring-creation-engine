@@ -1,0 +1,274 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { SELLX_SYSTEM_PROMPT } from "./ai.server";
+import { structuredCall } from "./research.server";
+
+export const DISCOVERY_FILTERS = [
+  "no_website_found",
+  "website_no_ordering",
+  "observable_ux_issues",
+  "social_only",
+  "no_google_business_profile",
+  "low_review_count",
+  "high_reviews_no_website",
+  "uses_third_party_ordering",
+  "independent_not_chain",
+  "one_to_three_locations",
+] as const;
+
+export const DISCOVERY_SOURCES = [
+  "Google Maps",
+  "Yelp",
+  "Instagram",
+  "TikTok",
+  "Facebook Pages",
+  "LinkedIn",
+  "Reddit",
+  "TripAdvisor",
+  "Apple Maps",
+] as const;
+
+export const DISQUALIFIERS = [
+  { key: "large_chain", label: "Large chain / franchise", flag: "Corporate decision-maker not reachable" },
+  { key: "excellent_direct_ordering", label: "Already has excellent direct ordering", flag: "No identifiable problem" },
+  { key: "no_opportunity", label: "No evidence-backed opportunity", flag: "No compelling sales opportunity" },
+  { key: "closed", label: "Business appears closed", flag: "Business closed" },
+  { key: "under_construction", label: "Website under construction", flag: "Not yet operational" },
+  { key: "franchise_corporate", label: "Franchise — corporate decision", flag: "Franchise — corporate decision" },
+  { key: "no_contact", label: "No viable contact method", flag: "No contact channel" },
+  { key: "previously_rejected", label: "Previously rejected", flag: "Previously rejected" },
+] as const;
+
+type Candidate = {
+  business_name: string;
+  industry: string;
+  city: string;
+  country: string;
+  website: string;
+  instagram: string;
+  known_facts: string[];
+  what_to_check: string[];
+  suggested_angle: string;
+  disqualifier: string;
+};
+
+const CANDIDATE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["candidates", "method_note"],
+  properties: {
+    method_note: { type: "string" },
+    candidates: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "business_name",
+          "industry",
+          "city",
+          "country",
+          "website",
+          "instagram",
+          "known_facts",
+          "what_to_check",
+          "suggested_angle",
+          "disqualifier",
+        ],
+        properties: {
+          business_name: { type: "string" },
+          industry: { type: "string" },
+          city: { type: "string" },
+          country: { type: "string" },
+          website: { type: "string" },
+          instagram: { type: "string" },
+          known_facts: { type: "array", items: { type: "string" } },
+          what_to_check: { type: "array", items: { type: "string" } },
+          suggested_angle: { type: "string" },
+          disqualifier: { type: "string" },
+        },
+      },
+    },
+  },
+} as const;
+
+/**
+ * Suggests candidate businesses to research. No live source API is connected,
+ * so every candidate is stored as UNVERIFIED with explicit checks required.
+ */
+export async function runDiscovery(
+  supabase: SupabaseClient,
+  userId: string,
+  input: {
+    industry: string;
+    location: string;
+    filters: string[];
+    sources: string[];
+    limit: number;
+    notes?: string | undefined;
+  },
+) {
+  const result = await structuredCall<{ candidates: Candidate[]; method_note: string }>({
+    system: SELLX_SYSTEM_PROMPT,
+    user: `Suggest up to ${input.limit} candidate businesses to RESEARCH (not to contact yet).
+
+Industry: ${input.industry}
+Location: ${input.location}
+Requested filters: ${input.filters.join(", ") || "none"}
+Sources the user says they will check manually: ${input.sources.join(", ") || "none"}
+User notes: ${input.notes || "none"}
+
+HARD RULES:
+- You have no live access to Google Maps, Yelp, Instagram or any API in this call.
+- Therefore NOTHING you output is Verified. known_facts must be phrased as recollection to be checked, never as confirmed fact.
+- Never invent phone numbers, emails, review counts, ratings, revenue or commission rates.
+- website/instagram may be empty strings when you are unsure. Empty is better than wrong.
+- what_to_check must list the concrete checks needed to turn this candidate into evidence.
+- disqualifier: empty string unless you have a real reason to think it is a chain/franchise/closed; then one short reason.
+- method_note: one honest sentence on how these names were produced and their limits.`,
+    schemaName: "discovery_candidates",
+    schema: CANDIDATE_SCHEMA as unknown as Record<string, unknown>,
+  });
+
+  const { data: search, error: searchErr } = await supabase
+    .from("discovery_searches")
+    .insert({
+      user_id: userId,
+      industry: input.industry,
+      location: input.location,
+      filters: input.filters,
+      sources: input.sources,
+      notes: input.notes ?? null,
+      result_count: result.candidates.length,
+    })
+    .select()
+    .single();
+  if (searchErr) throw new Error(searchErr.message);
+
+  const { data: dnc } = await supabase.from("dnc_entries").select("value").eq("user_id", userId);
+  const blocked = new Set((dnc ?? []).map((d) => d.value.toLowerCase().trim()));
+  const { data: rejected } = await supabase
+    .from("leads")
+    .select("business_name")
+    .eq("user_id", userId)
+    .eq("stage", "closed_lost");
+  const rejectedNames = new Set((rejected ?? []).map((r) => r.business_name.toLowerCase().trim()));
+
+  const created: Array<{ id: string; business_name: string; disqualifier: string }> = [];
+
+  for (const c of result.candidates) {
+    const name = c.business_name.trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    const previouslyRejected = rejectedNames.has(key);
+    const dncHit = blocked.has(key) || (c.website ? blocked.has(c.website.toLowerCase()) : false);
+    const disqualifier = previouslyRejected
+      ? "Previously rejected"
+      : dncHit
+        ? "On do-not-contact list"
+        : c.disqualifier.trim();
+
+    const { data: lead, error } = await supabase
+      .from("leads")
+      .insert({
+        user_id: userId,
+        business_name: name,
+        industry: c.industry || input.industry,
+        city: c.city || input.location,
+        country: c.country || null,
+        website: c.website || null,
+        instagram: c.instagram || null,
+        source: "ai_discovery",
+        discovery_search_id: search.id,
+        stage: "new",
+        approval_status: disqualifier ? "rejected" : "pending",
+        do_not_contact: Boolean(disqualifier),
+        disqualify_reason: disqualifier || null,
+        best_angle: c.suggested_angle || null,
+        why_this_lead: [],
+        notes: c.what_to_check.length ? `Checks needed:\n- ${c.what_to_check.join("\n- ")}` : null,
+      })
+      .select("id")
+      .single();
+    if (error) continue;
+
+    const rows = [
+      ...c.known_facts.map((f) => ({
+        user_id: userId,
+        lead_id: lead.id,
+        title: f,
+        detail: "Recalled by the model, not observed. Must be checked against a live source.",
+        strength: "unknown" as const,
+        confidence: "none" as const,
+        source: "AI recollection (unverified)",
+      })),
+    ];
+    if (rows.length) await supabase.from("signals").insert(rows);
+
+    await supabase.from("activities").insert({
+      user_id: userId,
+      lead_id: lead.id,
+      kind: "discovery",
+      description: disqualifier
+        ? `Discovered and auto-flagged as bad fit: ${disqualifier}`
+        : "Discovered as an unverified candidate — awaiting evidence audit and approval.",
+      metadata: { search_id: search.id, what_to_check: c.what_to_check },
+    });
+
+    created.push({ id: lead.id, business_name: name, disqualifier });
+  }
+
+  return { searchId: search.id, methodNote: result.method_note, created };
+}
+
+/** Deterministic negative qualification from stored evidence only. */
+export async function negativeQualify(supabase: SupabaseClient, userId: string, leadId: string) {
+  const { data: lead } = await supabase.from("leads").select("*").eq("id", leadId).maybeSingle();
+  if (!lead) throw new Error("Lead not found.");
+  const { data: gap } = await supabase.from("ordering_gaps").select("*").eq("lead_id", leadId).maybeSingle();
+  const { data: signals } = await supabase.from("signals").select("*").eq("lead_id", leadId);
+  const { data: friction } = await supabase.from("friction_points").select("*").eq("lead_id", leadId);
+  const { data: dnc } = await supabase.from("dnc_entries").select("value").eq("user_id", userId);
+
+  const reasons: string[] = [];
+  if ((lead.locations_count ?? 0) > 3 || lead.is_chain) reasons.push("Corporate decision-maker not reachable");
+  if (gap?.direct_ordering === "verified" && (friction ?? []).every((f) => f.level === "low")) {
+    reasons.push("No identifiable problem");
+  }
+  if (!lead.email && !lead.phone && !lead.instagram && !lead.facebook) reasons.push("No contact channel");
+  if (lead.stage === "closed_lost") reasons.push("Previously rejected");
+  const values = new Set((dnc ?? []).map((d) => d.value.toLowerCase()));
+  if (
+    (lead.email && values.has(lead.email.toLowerCase())) ||
+    (lead.phone && values.has(lead.phone.toLowerCase())) ||
+    values.has(lead.business_name.toLowerCase())
+  ) {
+    reasons.push("On do-not-contact list");
+  }
+  const hasOpportunity =
+    (signals ?? []).some((s) => s.strength === "strong" || s.strength === "medium") ||
+    (gap?.third_party_platforms?.length ?? 0) > 0 ||
+    (friction ?? []).some((f) => f.level !== "low");
+  if (!hasOpportunity) reasons.push("No compelling sales opportunity");
+
+  const badFit = reasons.length > 0;
+  await supabase
+    .from("leads")
+    .update({
+      do_not_contact: badFit,
+      disqualify_reason: badFit ? reasons.join("; ") : null,
+      classification: badFit ? "bad_fit" : lead.classification,
+    })
+    .eq("id", leadId);
+
+  await supabase.from("activities").insert({
+    user_id: userId,
+    lead_id: leadId,
+    kind: "qualification",
+    description: badFit
+      ? `Negative qualification: do not contact — ${reasons.join("; ")}`
+      : "Negative qualification passed — an evidence-backed opportunity exists.",
+    metadata: { reasons },
+  });
+
+  return { badFit, reasons };
+}

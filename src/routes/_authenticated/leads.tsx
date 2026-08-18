@@ -37,13 +37,16 @@ export const Route = createFileRoute("/_authenticated/leads")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>): { lead?: string } =>
+    typeof search["lead"] === "string" ? { lead: search["lead"] } : {},
   component: LeadsPage,
 });
 
 function LeadsPage() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
-  const [openLead, setOpenLead] = useState<string | null>(null);
+  const search = Route.useSearch();
+  const [openLead, setOpenLead] = useState<string | null>(search.lead ?? null);
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({ business_name: "", city: "", website: "", phone: "", industry: "" });
 
