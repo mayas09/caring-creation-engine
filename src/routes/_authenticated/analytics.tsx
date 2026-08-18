@@ -49,7 +49,7 @@ function AnalyticsPage() {
   const drafted = messages.length;
   const overrides = messages.filter((m) => m.override_logged).length;
   const passed = messages.filter((m) => m.verification_passed).length;
-  const bounced = messages.filter((m) => m.status === "bounced").length;
+  const failed = messages.filter((m) => m.status === "failed").length;
   const replied = leads.filter((l) =>
     ["replied", "demo_scheduled", "proposal_sent", "negotiating", "closed_won"].includes(l.stage),
   ).length;
@@ -110,7 +110,7 @@ function AnalyticsPage() {
           <Row label="Drafts created" value={drafted} note="count(outreach_messages)" />
           <Row label="Passed honesty check" value={`${passed}/${drafted}`} note="verification_passed" />
           <Row label="Sent with override" value={overrides} note="override_logged = true" />
-          <Row label="Bounced" value={bounced} note="status = bounced" />
+          <Row label="Failed" value={failed} note="status = failed" />
           <Row label="Open rate" value="Unknown" note="no tracking pixel configured" />
           <Row label="Click rate" value="Unknown" note="no link tracking configured" />
         </CardContent>
