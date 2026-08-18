@@ -38,7 +38,7 @@ function CampaignsPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [channel, setChannel] = useState("email");
+  const [channel, setChannel] = useState<"email" | "call" | "sms" | "dm">("email");
 
   const { data: campaigns = [] } = useQuery({
     queryKey: ["campaigns"],
@@ -96,12 +96,17 @@ function CampaignsPage() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="cchannel">Channel</Label>
-                <Input
+                <select
                   id="cchannel"
                   value={channel}
-                  onChange={(e) => setChannel(e.target.value)}
-                  placeholder="email / call / whatsapp"
-                />
+                  onChange={(e) => setChannel(e.target.value as typeof channel)}
+                  className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                >
+                  <option value="email">Email</option>
+                  <option value="call">Call</option>
+                  <option value="sms">SMS</option>
+                  <option value="dm">DM</option>
+                </select>
               </div>
             </div>
             <DialogFooter>
@@ -127,11 +132,11 @@ function CampaignsPage() {
             <CardHeader>
               <CardTitle className="text-base">{c.name}</CardTitle>
               <CardDescription>
-                {c.channel} · {c.status}
+                {c.channel} · {c.is_active ? "Active" : "Paused"}
               </CardDescription>
             </CardHeader>
             <CardContent className="text-xs text-muted-foreground">
-              Daily cap: {c.daily_cap ?? "—"} · Sent: {c.sent_count ?? 0} · Replies: {c.reply_count ?? 0}
+              {c.description ?? "No description recorded."}
             </CardContent>
           </Card>
         ))}
