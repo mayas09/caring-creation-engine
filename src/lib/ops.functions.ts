@@ -105,3 +105,51 @@ export const generateBump = createServerFn({ method: "POST" })
     await supabase.from("leads").update({ bump_count: current + 1 }).eq("id", data.leadId);
     return { drafted: true, verification: res.verification, message: res.message };
   });
+
+export const purgeExpiredData = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: settings } = await supabase
+      .from("user_settings")
+      .select("data_retention_days")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const days = settings?.data_retention_days ?? 365;
+    const cutoff = new Date(Date.now() - days * 86_400_000).toISOString();
+    const { data: acts } = await supabase
+      .from("activities")
+      .delete()
+      .eq("user_id", userId)
+      .lt("created_at", cutoff)
+      .select("id");
+    const { data: chats } = await supabase
+      .from("chat_messages")
+      .delete()
+      .eq("user_id", userId)
+      .lt("created_at", cutoff)
+      .select("id");
+    return { retentionDays: days, cutoff, activitiesDeleted: acts?.length ?? 0, chatDeleted: chats?.length ?? 0 };
+  });
+
+export const listStaleEvidence = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const cutoff = new Date(Date.now() - 30 * 86_400_000).toISOString();
+    const { data } = await supabase
+      .from("evidence")
+      .select("id,evidence_code,claim,checked_at,lead_id,leads(business_name)")
+      .eq("user_id", userId)
+      .lt("checked_at", cutoff)
+      .order("checked_at", { ascending: true })
+      .limit(50);
+    return (data ?? []).map((e) => ({
+      id: e.id as string,
+      code: e.evidence_code as string,
+      claim: e.claim as string,
+      checkedAt: e.checked_at as string,
+      leadId: e.lead_id as string | null,
+      leadName: ((e as { leads?: { business_name?: string } }).leads?.business_name ?? "Unknown lead") as string,
+    }));
+  });
