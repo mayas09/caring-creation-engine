@@ -187,7 +187,7 @@ function DashboardPage() {
 
 type BriefData = Awaited<ReturnType<typeof getMorningBrief>>;
 
-function MorningBrief({ data, loading }: { data?: BriefData; loading: boolean }) {
+function MorningBrief({ data, loading }: { data: BriefData | undefined; loading: boolean }) {
   return (
     <Card className="border-primary/30">
       <CardHeader>
