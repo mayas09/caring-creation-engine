@@ -1,5 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { getMorningBrief, runOpsMaintenance } from "@/lib/ops.functions";
 import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +29,27 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 function DashboardPage() {
+  const qc = useQueryClient();
+  const brief = useServerFn(getMorningBrief);
+  const maintain = useServerFn(runOpsMaintenance);
+
+  const briefQuery = useQuery({
+    queryKey: ["morning-brief"],
+    queryFn: () => brief({ data: undefined }),
+  });
+
+  const maintenance = useMutation({
+    mutationFn: () => maintain({ data: undefined }),
+    onSuccess: (r) => {
+      toast.success(
+        `Maintenance done: ${r.ghosted} leads marked ghost (threshold ${r.threshold}d), ${r.staleEvidence} stale evidence items flagged.`,
+      );
+      void qc.invalidateQueries({ queryKey: ["morning-brief"] });
+      void qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
@@ -71,10 +95,22 @@ function DashboardPage() {
             Signals, not truths. Numbers below are Calculated from your stored evidence.
           </p>
         </div>
-        <Button asChild size="sm">
-          <Link to="/leads">Open leads</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={maintenance.isPending}
+            onClick={() => maintenance.mutate()}
+          >
+            {maintenance.isPending ? "Running…" : "Run maintenance"}
+          </Button>
+          <Button asChild size="sm">
+            <Link to="/leads">Open leads</Link>
+          </Button>
+        </div>
       </header>
+
+      <MorningBrief data={briefQuery.data} loading={briefQuery.isLoading} />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Total leads" value={leads.length} type="verified" hint="Rows stored in your workspace" />
@@ -146,6 +182,99 @@ function DashboardPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+type BriefData = Awaited<ReturnType<typeof getMorningBrief>>;
+
+function MorningBrief({ data, loading }: { data: BriefData | undefined; loading: boolean }) {
+  return (
+    <Card className="border-primary/30">
+      <CardHeader>
+        <CardTitle className="text-base">Daily morning brief</CardTitle>
+        <CardDescription>
+          Counted from stored rows only. Anything not measured is shown as Unknown.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {loading && <p className="text-sm text-muted-foreground">Building brief…</p>}
+        {data && (
+          <>
+            <div className="grid gap-2 text-xs sm:grid-cols-5">
+              {[
+                ["Sent", data.yesterday.sent],
+                ["Replied", data.yesterday.replied],
+                ["Failed", data.yesterday.bounced],
+                ["Calls", data.yesterday.calls],
+                ["Demos", data.yesterday.demos],
+              ].map(([label, value]) => (
+                <div key={String(label)} className="rounded-md border border-border/60 px-3 py-2">
+                  <p className="text-muted-foreground">Yesterday · {label}</p>
+                  <p className="text-lg font-semibold">{value as number}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Today&apos;s priorities
+                </p>
+                {data.priorities.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nothing overdue.</p>
+                ) : (
+                  <ul className="space-y-1 text-sm">
+                    {data.priorities.map((p) => (
+                      <li key={p.leadId}>
+                        <Link
+                          to="/leads"
+                          search={{ lead: p.leadId }}
+                          className="text-primary underline-offset-2 hover:underline"
+                        >
+                          {p.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div>
+                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Suggested leads (need your approval)
+                </p>
+                {data.suggested.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No pending candidates.</p>
+                ) : (
+                  <ul className="space-y-1 text-sm">
+                    {data.suggested.map((s) => (
+                      <li key={s.leadId}>
+                        <Link
+                          to="/leads"
+                          search={{ lead: s.leadId }}
+                          className="text-primary underline-offset-2 hover:underline"
+                        >
+                          {s.name}
+                        </Link>
+                        <span className="text-xs text-muted-foreground">
+                          {s.signals.length ? ` — ${s.signals.join("; ")}` : " — no signals recorded"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            <ul className="space-y-1 text-xs text-warning">
+              {data.alerts.map((a) => (
+                <li key={a}>• {a}</li>
+              ))}
+            </ul>
+            {data.pattern && <p className="text-xs text-muted-foreground">{data.pattern}</p>}
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

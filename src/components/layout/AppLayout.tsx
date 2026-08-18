@@ -3,6 +3,8 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Users,
+  Radar,
+  PhoneCall,
   MessageSquare,
   Send,
   KanbanSquare,
@@ -22,10 +24,12 @@ import { AiChatPanel } from "@/components/ai/AiChatPanel";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/discovery", label: "Discovery", icon: Radar },
   { to: "/leads", label: "Leads", icon: Users },
   { to: "/chat", label: "AI Chat", icon: MessageSquare },
   { to: "/campaigns", label: "Campaigns", icon: Send },
   { to: "/outbox", label: "Outbox", icon: Inbox },
+  { to: "/calls", label: "Calls", icon: PhoneCall },
   { to: "/pipeline", label: "Pipeline", icon: KanbanSquare },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/settings", label: "Settings", icon: Settings },

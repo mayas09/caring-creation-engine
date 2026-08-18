@@ -179,6 +179,69 @@ export type Database = {
           },
         ]
       }
+      discovery_searches: {
+        Row: {
+          created_at: string
+          filters: Json
+          id: string
+          industry: string
+          location: string
+          notes: string | null
+          result_count: number
+          sources: string[]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          industry: string
+          location: string
+          notes?: string | null
+          result_count?: number
+          sources?: string[]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          industry?: string
+          location?: string
+          notes?: string | null
+          result_count?: number
+          sources?: string[]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      dnc_entries: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          reason: string | null
+          user_id: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          reason?: string | null
+          user_id: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          reason?: string | null
+          user_id?: string
+          value?: string
+        }
+        Relationships: []
+      }
       evidence: {
         Row: {
           checked_at: string
@@ -279,17 +342,22 @@ export type Database = {
       leads: {
         Row: {
           address: string | null
+          approval_status: string
+          approved_at: string | null
           best_angle: string | null
+          bump_count: number
           business_name: string
           city: string | null
           classification: Database["public"]["Enums"]["lead_classification"]
           contact_name: string | null
           country: string | null
           created_at: string
+          discovery_search_id: string | null
           disqualify_reason: string | null
           do_not_contact: boolean
           email: string | null
           facebook: string | null
+          ghosted_at: string | null
           google_maps_url: string | null
           id: string
           industry: string | null
@@ -303,6 +371,7 @@ export type Database = {
           rating: number | null
           rejection_reason: string | null
           review_count: number | null
+          source: string | null
           stage: Database["public"]["Enums"]["lead_stage"]
           tiktok: string | null
           updated_at: string
@@ -312,17 +381,22 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          approval_status?: string
+          approved_at?: string | null
           best_angle?: string | null
+          bump_count?: number
           business_name: string
           city?: string | null
           classification?: Database["public"]["Enums"]["lead_classification"]
           contact_name?: string | null
           country?: string | null
           created_at?: string
+          discovery_search_id?: string | null
           disqualify_reason?: string | null
           do_not_contact?: boolean
           email?: string | null
           facebook?: string | null
+          ghosted_at?: string | null
           google_maps_url?: string | null
           id?: string
           industry?: string | null
@@ -336,6 +410,7 @@ export type Database = {
           rating?: number | null
           rejection_reason?: string | null
           review_count?: number | null
+          source?: string | null
           stage?: Database["public"]["Enums"]["lead_stage"]
           tiktok?: string | null
           updated_at?: string
@@ -345,17 +420,22 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          approval_status?: string
+          approved_at?: string | null
           best_angle?: string | null
+          bump_count?: number
           business_name?: string
           city?: string | null
           classification?: Database["public"]["Enums"]["lead_classification"]
           contact_name?: string | null
           country?: string | null
           created_at?: string
+          discovery_search_id?: string | null
           disqualify_reason?: string | null
           do_not_contact?: boolean
           email?: string | null
           facebook?: string | null
+          ghosted_at?: string | null
           google_maps_url?: string | null
           id?: string
           industry?: string | null
@@ -369,6 +449,7 @@ export type Database = {
           rating?: number | null
           rejection_reason?: string | null
           review_count?: number | null
+          source?: string | null
           stage?: Database["public"]["Enums"]["lead_stage"]
           tiktok?: string | null
           updated_at?: string
@@ -376,7 +457,15 @@ export type Database = {
           website?: string | null
           why_this_lead?: Json
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_discovery_search_id_fkey"
+            columns: ["discovery_search_id"]
+            isOneToOne: false
+            referencedRelation: "discovery_searches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ordering_gaps: {
         Row: {
@@ -454,6 +543,7 @@ export type Database = {
           created_at: string
           evidence_codes: string[]
           id: string
+          is_bump: boolean
           lead_id: string
           override_logged: boolean
           reasoning: Json
@@ -461,6 +551,7 @@ export type Database = {
           scheduled_at: string | null
           sent_at: string | null
           status: Database["public"]["Enums"]["outreach_status"]
+          step_index: number
           subject: string | null
           updated_at: string
           user_id: string
@@ -475,6 +566,7 @@ export type Database = {
           created_at?: string
           evidence_codes?: string[]
           id?: string
+          is_bump?: boolean
           lead_id: string
           override_logged?: boolean
           reasoning?: Json
@@ -482,6 +574,7 @@ export type Database = {
           scheduled_at?: string | null
           sent_at?: string | null
           status?: Database["public"]["Enums"]["outreach_status"]
+          step_index?: number
           subject?: string | null
           updated_at?: string
           user_id: string
@@ -496,6 +589,7 @@ export type Database = {
           created_at?: string
           evidence_codes?: string[]
           id?: string
+          is_bump?: boolean
           lead_id?: string
           override_logged?: boolean
           reasoning?: Json
@@ -503,6 +597,7 @@ export type Database = {
           scheduled_at?: string | null
           sent_at?: string | null
           status?: Database["public"]["Enums"]["outreach_status"]
+          step_index?: number
           subject?: string | null
           updated_at?: string
           user_id?: string
@@ -610,6 +705,7 @@ export type Database = {
           created_at: string
           cta_style: string
           daily_email_limit: number
+          data_retention_days: number
           email_style: string
           gdpr_tracking: boolean
           ghost_threshold_days: number
@@ -619,6 +715,7 @@ export type Database = {
           user_id: string
           voice_accent: string
           voice_gender: string
+          voice_provider: string
         }
         Insert: {
           aggressiveness?: string
@@ -628,6 +725,7 @@ export type Database = {
           created_at?: string
           cta_style?: string
           daily_email_limit?: number
+          data_retention_days?: number
           email_style?: string
           gdpr_tracking?: boolean
           ghost_threshold_days?: number
@@ -637,6 +735,7 @@ export type Database = {
           user_id: string
           voice_accent?: string
           voice_gender?: string
+          voice_provider?: string
         }
         Update: {
           aggressiveness?: string
@@ -646,6 +745,7 @@ export type Database = {
           created_at?: string
           cta_style?: string
           daily_email_limit?: number
+          data_retention_days?: number
           email_style?: string
           gdpr_tracking?: boolean
           ghost_threshold_days?: number
@@ -655,6 +755,7 @@ export type Database = {
           user_id?: string
           voice_accent?: string
           voice_gender?: string
+          voice_provider?: string
         }
         Relationships: []
       }

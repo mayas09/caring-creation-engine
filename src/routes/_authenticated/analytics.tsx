@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EvidenceBadge } from "@/components/evidence/EvidenceBadge";
 import { STAGE_LABEL, STAGE_ORDER } from "@/lib/evidence";
@@ -27,9 +28,11 @@ function AnalyticsPage() {
     queryKey: ["analytics"],
     queryFn: async () => {
       const [leads, evidence, messages] = await Promise.all([
-        supabase.from("leads").select("id,stage,classification"),
-        supabase.from("evidence").select("id,type"),
-        supabase.from("outreach_messages").select("id,status"),
+        supabase.from("leads").select("id,business_name,stage,classification,source,created_at"),
+        supabase.from("evidence").select("id,type,checked_at"),
+        supabase
+          .from("outreach_messages")
+          .select("id,status,sent_at,replied_at,verification_passed,override_logged,word_count"),
       ]);
       return {
         leads: leads.data ?? [],
@@ -42,7 +45,11 @@ function AnalyticsPage() {
   const leads = data?.leads ?? [];
   const evidence = data?.evidence ?? [];
   const messages = data?.messages ?? [];
-  const sent = messages.length;
+  const sent = messages.filter((m) => m.sent_at).length;
+  const drafted = messages.length;
+  const overrides = messages.filter((m) => m.override_logged).length;
+  const passed = messages.filter((m) => m.verification_passed).length;
+  const failed = messages.filter((m) => m.status === "failed").length;
   const replied = leads.filter((l) =>
     ["replied", "demo_scheduled", "proposal_sent", "negotiating", "closed_won"].includes(l.stage),
   ).length;
@@ -60,14 +67,54 @@ function AnalyticsPage() {
         <p className="text-sm text-muted-foreground">
           Every metric shows its formula. Missing inputs render as Unknown, never as an estimate.
         </p>
+        <Button
+          size="sm"
+          variant="outline"
+          className="mt-3"
+          onClick={() => {
+            const header = "business_name,stage,classification,source,created_at";
+            const rows = leads.map((l) =>
+              [l.business_name, l.stage, l.classification, l.source ?? "unknown", l.created_at]
+                .map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`)
+                .join(","),
+            );
+            const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "leads-export.csv";
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+        >
+          Export leads CSV
+        </Button>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Messages sent" value={sent} formula="count(outreach_messages)" />
+        <Metric label="Messages sent" value={sent} formula="count(sent_at is not null)" />
         <Metric label="Reply rate" value={replyRate === "—" ? "Unknown" : `${replyRate}%`} formula="replied ÷ sent × 100" />
         <Metric label="Win rate" value={winRate === "—" ? "Unknown" : `${winRate}%`} formula="closed_won ÷ total leads × 100" />
         <Metric label="Evidence coverage" value={`${coverage}%`} formula="verified ÷ all claims × 100" />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Message quality</CardTitle>
+          <CardDescription>
+            Open and click rates are not tracked in this workspace, so they are reported as Unknown rather
+            than estimated.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 text-sm">
+          <Row label="Drafts created" value={drafted} note="count(outreach_messages)" />
+          <Row label="Passed honesty check" value={`${passed}/${drafted}`} note="verification_passed" />
+          <Row label="Sent with override" value={overrides} note="override_logged = true" />
+          <Row label="Failed" value={failed} note="status = failed" />
+          <Row label="Open rate" value="Unknown" note="no tracking pixel configured" />
+          <Row label="Click rate" value="Unknown" note="no link tracking configured" />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -92,6 +139,16 @@ function AnalyticsPage() {
           })}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function Row({ label, value, note }: { label: string; value: string | number; note: string }) {
+  return (
+    <div className="rounded-md border border-border/60 px-3 py-2">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-lg font-semibold">{value}</p>
+      <p className="font-mono text-[11px] text-muted-foreground">{note}</p>
     </div>
   );
 }
