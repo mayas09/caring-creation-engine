@@ -41,6 +41,8 @@ type Form = {
   voice_provider: string;
   voice_gender: string;
   voice_accent: string;
+  source_policies: Record<string, boolean>;
+  integrations: Record<string, string>;
 };
 
 const DEFAULTS: Form = {
@@ -57,6 +59,13 @@ const DEFAULTS: Form = {
   voice_provider: "none",
   voice_gender: "neutral",
   voice_accent: "neutral",
+  source_policies: {
+    allow_public_web: true,
+    allow_social_profiles: true,
+    require_source_url: true,
+    allow_ai_recollection: false,
+  },
+  integrations: { crm: "", calendar: "", email_sender: "" },
 };
 
 function SettingsPage() {
@@ -88,6 +97,14 @@ function SettingsPage() {
         voice_provider: data.voice_provider,
         voice_gender: data.voice_gender,
         voice_accent: data.voice_accent,
+        source_policies: {
+          ...DEFAULTS.source_policies,
+          ...((data.source_policies as Record<string, boolean> | null) ?? {}),
+        },
+        integrations: {
+          ...DEFAULTS.integrations,
+          ...((data.integrations as Record<string, string> | null) ?? {}),
+        },
       });
     }
   }, [data]);
@@ -242,6 +259,66 @@ function SettingsPage() {
               options={["neutral", "american", "british", "australian"]}
             />
           </Field>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Source policies</CardTitle>
+          <CardDescription>
+            Controls which sources may back a claim. Anything outside these rules stays labelled Unknown.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {(
+            [
+              ["allow_public_web", "Allow public website evidence"],
+              ["allow_social_profiles", "Allow social profile evidence"],
+              ["require_source_url", "Require a source URL for Verified claims"],
+              ["allow_ai_recollection", "Allow AI recollection as Inferred (never Verified)"],
+            ] as const
+          ).map(([key, label]) => (
+            <div key={key} className="flex items-center justify-between gap-3">
+              <Label htmlFor={key} className="text-sm font-normal">
+                {label}
+              </Label>
+              <Switch
+                id={key}
+                checked={Boolean(form.source_policies[key])}
+                onCheckedChange={(v) =>
+                  setForm({ ...form, source_policies: { ...form.source_policies, [key]: v } })
+                }
+              />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Integrations</CardTitle>
+          <CardDescription>
+            Reference notes only — no data is pushed anywhere until you connect a provider.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {(
+            [
+              ["crm", "CRM"],
+              ["calendar", "Calendar / booking link"],
+              ["email_sender", "Sending mailbox"],
+            ] as const
+          ).map(([key, label]) => (
+            <Field key={key} label={label}>
+              <Input
+                value={form.integrations[key] ?? ""}
+                placeholder="Not configured"
+                onChange={(e) =>
+                  setForm({ ...form, integrations: { ...form.integrations, [key]: e.target.value } })
+                }
+              />
+            </Field>
+          ))}
         </CardContent>
       </Card>
 
