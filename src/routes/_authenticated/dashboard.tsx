@@ -204,7 +204,7 @@ function MorningBrief({ data, loading }: { data: BriefData | undefined; loading:
               {[
                 ["Sent", data.yesterday.sent],
                 ["Replied", data.yesterday.replied],
-                ["Bounced", data.yesterday.bounced],
+                ["Failed", data.yesterday.bounced],
                 ["Calls", data.yesterday.calls],
                 ["Demos", data.yesterday.demos],
               ].map(([label, value]) => (
