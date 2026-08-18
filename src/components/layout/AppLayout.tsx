@@ -32,6 +32,7 @@ const NAV = [
   { to: "/calls", label: "Calls", icon: PhoneCall },
   { to: "/pipeline", label: "Pipeline", icon: KanbanSquare },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
+  { to: "/compliance", label: "Compliance", icon: ShieldCheck },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 

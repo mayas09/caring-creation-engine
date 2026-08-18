@@ -16,6 +16,7 @@ import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedCallsRouteImport } from './routes/_authenticated/calls'
 import { Route as AuthenticatedCampaignsRouteImport } from './routes/_authenticated/campaigns'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
+import { Route as AuthenticatedComplianceRouteImport } from './routes/_authenticated/compliance'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDiscoveryRouteImport } from './routes/_authenticated/discovery'
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
@@ -57,6 +58,11 @@ const AuthenticatedChatRoute = AuthenticatedChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedComplianceRoute = AuthenticatedComplianceRouteImport.update({
+  id: '/compliance',
+  path: '/compliance',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/calls': typeof AuthenticatedCallsRoute
   '/campaigns': typeof AuthenticatedCampaignsRoute
   '/chat': typeof AuthenticatedChatRoute
+  '/compliance': typeof AuthenticatedComplianceRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/discovery': typeof AuthenticatedDiscoveryRoute
   '/leads': typeof AuthenticatedLeadsRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/calls': typeof AuthenticatedCallsRoute
   '/campaigns': typeof AuthenticatedCampaignsRoute
   '/chat': typeof AuthenticatedChatRoute
+  '/compliance': typeof AuthenticatedComplianceRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/discovery': typeof AuthenticatedDiscoveryRoute
   '/leads': typeof AuthenticatedLeadsRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/_authenticated/calls': typeof AuthenticatedCallsRoute
   '/_authenticated/campaigns': typeof AuthenticatedCampaignsRoute
   '/_authenticated/chat': typeof AuthenticatedChatRoute
+  '/_authenticated/compliance': typeof AuthenticatedComplianceRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/discovery': typeof AuthenticatedDiscoveryRoute
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/calls'
     | '/campaigns'
     | '/chat'
+    | '/compliance'
     | '/dashboard'
     | '/discovery'
     | '/leads'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/calls'
     | '/campaigns'
     | '/chat'
+    | '/compliance'
     | '/dashboard'
     | '/discovery'
     | '/leads'
@@ -170,6 +181,7 @@ export interface FileRouteTypes {
     | '/_authenticated/calls'
     | '/_authenticated/campaigns'
     | '/_authenticated/chat'
+    | '/_authenticated/compliance'
     | '/_authenticated/dashboard'
     | '/_authenticated/discovery'
     | '/_authenticated/leads'
@@ -235,6 +247,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChatRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/compliance': {
+      id: '/_authenticated/compliance'
+      path: '/compliance'
+      fullPath: '/compliance'
+      preLoaderRoute: typeof AuthenticatedComplianceRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -285,6 +304,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCallsRoute: typeof AuthenticatedCallsRoute
   AuthenticatedCampaignsRoute: typeof AuthenticatedCampaignsRoute
   AuthenticatedChatRoute: typeof AuthenticatedChatRoute
+  AuthenticatedComplianceRoute: typeof AuthenticatedComplianceRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDiscoveryRoute: typeof AuthenticatedDiscoveryRoute
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
@@ -298,6 +318,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCallsRoute: AuthenticatedCallsRoute,
   AuthenticatedCampaignsRoute: AuthenticatedCampaignsRoute,
   AuthenticatedChatRoute: AuthenticatedChatRoute,
+  AuthenticatedComplianceRoute: AuthenticatedComplianceRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDiscoveryRoute: AuthenticatedDiscoveryRoute,
   AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
