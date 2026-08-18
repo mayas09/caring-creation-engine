@@ -50,11 +50,32 @@ export function LeadDetail({ leadId }: { leadId: string }) {
     setBusy(true);
     try {
       const res = await draft({ data: { leadId, style: "short", ctaStyle: "soft" } });
-      setEmail(res.content);
+      setDraftResult({
+        subject: res.message?.subject ?? "",
+        body: res.message?.body ?? "",
+        passed: res.verification.passed,
+        issues: res.verification.issues,
+      });
+      void qc.invalidateQueries({ queryKey: ["outbox"] });
+      void qc.invalidateQueries({ queryKey: ["leads"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Draft failed");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function runAudit() {
+    setAuditing(true);
+    try {
+      const res = await audit({ data: { leadId } });
+      toast.success(`Audit complete — ${res.evidence.length} claims logged.`);
+      void qc.invalidateQueries({ queryKey: ["lead", leadId] });
+      void qc.invalidateQueries({ queryKey: ["leads"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Audit failed");
+    } finally {
+      setAuditing(false);
     }
   }
 
