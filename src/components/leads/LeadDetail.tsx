@@ -1,19 +1,24 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Wand2 } from "lucide-react";
+import { Wand2, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ClaimRow, EvidenceBadge, FreshnessTag } from "@/components/evidence/EvidenceBadge";
 import { CLASSIFICATION_LABEL, STAGE_LABEL, type EvidenceType } from "@/lib/evidence";
-import { draftOutreachEmail } from "@/lib/ai.functions";
+import { generateOutreach, runLeadAudit } from "@/lib/research.functions";
+
+type DraftResult = { subject: string; body: string; passed: boolean; issues: string[] };
 
 export function LeadDetail({ leadId }: { leadId: string }) {
-  const draft = useServerFn(draftOutreachEmail);
-  const [email, setEmail] = useState<string | null>(null);
+  const qc = useQueryClient();
+  const draft = useServerFn(generateOutreach);
+  const audit = useServerFn(runLeadAudit);
+  const [draftResult, setDraftResult] = useState<DraftResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const [auditing, setAuditing] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["lead", leadId],
