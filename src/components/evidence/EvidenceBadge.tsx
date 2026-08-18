@@ -14,8 +14,8 @@ export function EvidenceBadge({
   className,
 }: {
   type: EvidenceType;
-  code?: string;
-  className?: string;
+  code?: string | undefined;
+  className?: string | undefined;
 }) {
   return (
     <span
@@ -50,9 +50,9 @@ export function ClaimRow({
 }: {
   claim: string;
   type: EvidenceType;
-  source?: string | null;
-  code?: string;
-  checkedAt?: string;
+  source?: string | null | undefined;
+  code?: string | undefined;
+  checkedAt?: string | undefined;
 }) {
   return (
     <div className="flex flex-col gap-1 border-b border-border/60 py-2 last:border-0">

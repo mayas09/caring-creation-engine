@@ -15,7 +15,7 @@ const QUICK = [
   "Draft a short, respectful opener",
 ];
 
-export function AiChatPanel({ onClose, leadContext }: { onClose?: () => void; leadContext?: string }) {
+export function AiChatPanel({ onClose, leadContext }: { onClose?: (() => void) | undefined; leadContext?: string | undefined }) {
   const chat = useServerFn(sellxChat);
   const [messages, setMessages] = useState<Msg[]>([
     {
