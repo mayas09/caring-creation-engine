@@ -14,7 +14,650 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activities: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          kind: string
+          lead_id: string | null
+          metadata: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          kind: string
+          lead_id?: string | null
+          metadata?: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          kind?: string
+          lead_id?: string | null
+          metadata?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calls: {
+        Row: {
+          accent: string | null
+          created_at: string
+          duration_seconds: number | null
+          evidence_codes: string[]
+          id: string
+          lead_id: string
+          recording_enabled: boolean
+          result: string | null
+          script: string | null
+          summary: Json | null
+          transcript: string | null
+          user_id: string
+        }
+        Insert: {
+          accent?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          evidence_codes?: string[]
+          id?: string
+          lead_id: string
+          recording_enabled?: boolean
+          result?: string | null
+          script?: string | null
+          summary?: Json | null
+          transcript?: string | null
+          user_id: string
+        }
+        Update: {
+          accent?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          evidence_codes?: string[]
+          id?: string
+          lead_id?: string
+          recording_enabled?: boolean
+          result?: string | null
+          script?: string | null
+          summary?: Json | null
+          transcript?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calls_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          channel: Database["public"]["Enums"]["outreach_channel"]
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          steps: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channel?: Database["public"]["Enums"]["outreach_channel"]
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          steps?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channel?: Database["public"]["Enums"]["outreach_channel"]
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          steps?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          claims: Json
+          content: string
+          created_at: string
+          id: string
+          lead_id: string | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          claims?: Json
+          content: string
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          role: string
+          user_id: string
+        }
+        Update: {
+          claims?: Json
+          content?: string
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evidence: {
+        Row: {
+          checked_at: string
+          claim: string
+          confidence: Database["public"]["Enums"]["confidence_level"]
+          created_at: string
+          evidence_code: string
+          expires_at: string | null
+          id: string
+          lead_id: string | null
+          method: string | null
+          source: string | null
+          type: Database["public"]["Enums"]["evidence_type"]
+          user_id: string
+        }
+        Insert: {
+          checked_at?: string
+          claim: string
+          confidence?: Database["public"]["Enums"]["confidence_level"]
+          created_at?: string
+          evidence_code: string
+          expires_at?: string | null
+          id?: string
+          lead_id?: string | null
+          method?: string | null
+          source?: string | null
+          type: Database["public"]["Enums"]["evidence_type"]
+          user_id: string
+        }
+        Update: {
+          checked_at?: string
+          claim?: string
+          confidence?: Database["public"]["Enums"]["confidence_level"]
+          created_at?: string
+          evidence_code?: string
+          expires_at?: string | null
+          id?: string
+          lead_id?: string | null
+          method?: string | null
+          source?: string | null
+          type?: Database["public"]["Enums"]["evidence_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      friction_points: {
+        Row: {
+          created_at: string
+          evidence: string | null
+          evidence_code: string | null
+          id: string
+          lead_id: string
+          level: Database["public"]["Enums"]["friction_level"]
+          point: string
+          source: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          evidence?: string | null
+          evidence_code?: string | null
+          id?: string
+          lead_id: string
+          level?: Database["public"]["Enums"]["friction_level"]
+          point: string
+          source?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          evidence?: string | null
+          evidence_code?: string | null
+          id?: string
+          lead_id?: string
+          level?: Database["public"]["Enums"]["friction_level"]
+          point?: string
+          source?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "friction_points_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          address: string | null
+          best_angle: string | null
+          business_name: string
+          city: string | null
+          classification: Database["public"]["Enums"]["lead_classification"]
+          contact_name: string | null
+          country: string | null
+          created_at: string
+          disqualify_reason: string | null
+          do_not_contact: boolean
+          email: string | null
+          facebook: string | null
+          google_maps_url: string | null
+          id: string
+          industry: string | null
+          instagram: string | null
+          is_chain: boolean
+          last_contacted_at: string | null
+          locations_count: number | null
+          notes: string | null
+          phone: string | null
+          priority: Database["public"]["Enums"]["priority_level"]
+          rating: number | null
+          rejection_reason: string | null
+          review_count: number | null
+          stage: Database["public"]["Enums"]["lead_stage"]
+          tiktok: string | null
+          updated_at: string
+          user_id: string
+          website: string | null
+          why_this_lead: Json
+        }
+        Insert: {
+          address?: string | null
+          best_angle?: string | null
+          business_name: string
+          city?: string | null
+          classification?: Database["public"]["Enums"]["lead_classification"]
+          contact_name?: string | null
+          country?: string | null
+          created_at?: string
+          disqualify_reason?: string | null
+          do_not_contact?: boolean
+          email?: string | null
+          facebook?: string | null
+          google_maps_url?: string | null
+          id?: string
+          industry?: string | null
+          instagram?: string | null
+          is_chain?: boolean
+          last_contacted_at?: string | null
+          locations_count?: number | null
+          notes?: string | null
+          phone?: string | null
+          priority?: Database["public"]["Enums"]["priority_level"]
+          rating?: number | null
+          rejection_reason?: string | null
+          review_count?: number | null
+          stage?: Database["public"]["Enums"]["lead_stage"]
+          tiktok?: string | null
+          updated_at?: string
+          user_id: string
+          website?: string | null
+          why_this_lead?: Json
+        }
+        Update: {
+          address?: string | null
+          best_angle?: string | null
+          business_name?: string
+          city?: string | null
+          classification?: Database["public"]["Enums"]["lead_classification"]
+          contact_name?: string | null
+          country?: string | null
+          created_at?: string
+          disqualify_reason?: string | null
+          do_not_contact?: boolean
+          email?: string | null
+          facebook?: string | null
+          google_maps_url?: string | null
+          id?: string
+          industry?: string | null
+          instagram?: string | null
+          is_chain?: boolean
+          last_contacted_at?: string | null
+          locations_count?: number | null
+          notes?: string | null
+          phone?: string | null
+          priority?: Database["public"]["Enums"]["priority_level"]
+          rating?: number | null
+          rejection_reason?: string | null
+          review_count?: number | null
+          stage?: Database["public"]["Enums"]["lead_stage"]
+          tiktok?: string | null
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+          why_this_lead?: Json
+        }
+        Relationships: []
+      }
+      ordering_gaps: {
+        Row: {
+          checked_at: string
+          direct_ordering: Database["public"]["Enums"]["evidence_type"]
+          evidence_codes: string[]
+          gap_summary: string | null
+          has_direct_ordering: boolean | null
+          has_menu: boolean | null
+          has_online_ordering: boolean | null
+          has_website: boolean | null
+          lead_id: string
+          menu_found: Database["public"]["Enums"]["evidence_type"]
+          online_ordering: Database["public"]["Enums"]["evidence_type"]
+          order_button_destination: string | null
+          ordering_type: string | null
+          third_party_platforms: string[]
+          updated_at: string
+          user_id: string
+          website_found: Database["public"]["Enums"]["evidence_type"]
+        }
+        Insert: {
+          checked_at?: string
+          direct_ordering?: Database["public"]["Enums"]["evidence_type"]
+          evidence_codes?: string[]
+          gap_summary?: string | null
+          has_direct_ordering?: boolean | null
+          has_menu?: boolean | null
+          has_online_ordering?: boolean | null
+          has_website?: boolean | null
+          lead_id: string
+          menu_found?: Database["public"]["Enums"]["evidence_type"]
+          online_ordering?: Database["public"]["Enums"]["evidence_type"]
+          order_button_destination?: string | null
+          ordering_type?: string | null
+          third_party_platforms?: string[]
+          updated_at?: string
+          user_id: string
+          website_found?: Database["public"]["Enums"]["evidence_type"]
+        }
+        Update: {
+          checked_at?: string
+          direct_ordering?: Database["public"]["Enums"]["evidence_type"]
+          evidence_codes?: string[]
+          gap_summary?: string | null
+          has_direct_ordering?: boolean | null
+          has_menu?: boolean | null
+          has_online_ordering?: boolean | null
+          has_website?: boolean | null
+          lead_id?: string
+          menu_found?: Database["public"]["Enums"]["evidence_type"]
+          online_ordering?: Database["public"]["Enums"]["evidence_type"]
+          order_button_destination?: string | null
+          ordering_type?: string | null
+          third_party_platforms?: string[]
+          updated_at?: string
+          user_id?: string
+          website_found?: Database["public"]["Enums"]["evidence_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordering_gaps_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outreach_messages: {
+        Row: {
+          body: string
+          campaign_id: string | null
+          channel: Database["public"]["Enums"]["outreach_channel"]
+          created_at: string
+          evidence_codes: string[]
+          id: string
+          lead_id: string
+          override_logged: boolean
+          reasoning: Json
+          replied_at: string | null
+          scheduled_at: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["outreach_status"]
+          subject: string | null
+          updated_at: string
+          user_id: string
+          verification: Json | null
+          verification_passed: boolean | null
+          word_count: number | null
+        }
+        Insert: {
+          body: string
+          campaign_id?: string | null
+          channel?: Database["public"]["Enums"]["outreach_channel"]
+          created_at?: string
+          evidence_codes?: string[]
+          id?: string
+          lead_id: string
+          override_logged?: boolean
+          reasoning?: Json
+          replied_at?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["outreach_status"]
+          subject?: string | null
+          updated_at?: string
+          user_id: string
+          verification?: Json | null
+          verification_passed?: boolean | null
+          word_count?: number | null
+        }
+        Update: {
+          body?: string
+          campaign_id?: string | null
+          channel?: Database["public"]["Enums"]["outreach_channel"]
+          created_at?: string
+          evidence_codes?: string[]
+          id?: string
+          lead_id?: string
+          override_logged?: boolean
+          reasoning?: Json
+          replied_at?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["outreach_status"]
+          subject?: string | null
+          updated_at?: string
+          user_id?: string
+          verification?: Json | null
+          verification_passed?: boolean | null
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_messages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_messages_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          city: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      signals: {
+        Row: {
+          confidence: Database["public"]["Enums"]["confidence_level"]
+          created_at: string
+          detail: string | null
+          evidence_codes: string[]
+          id: string
+          lead_id: string
+          note: string | null
+          source: string | null
+          strength: Database["public"]["Enums"]["signal_strength"]
+          title: string
+          user_id: string
+        }
+        Insert: {
+          confidence?: Database["public"]["Enums"]["confidence_level"]
+          created_at?: string
+          detail?: string | null
+          evidence_codes?: string[]
+          id?: string
+          lead_id: string
+          note?: string | null
+          source?: string | null
+          strength?: Database["public"]["Enums"]["signal_strength"]
+          title: string
+          user_id: string
+        }
+        Update: {
+          confidence?: Database["public"]["Enums"]["confidence_level"]
+          created_at?: string
+          detail?: string | null
+          evidence_codes?: string[]
+          id?: string
+          lead_id?: string
+          note?: string | null
+          source?: string | null
+          strength?: Database["public"]["Enums"]["signal_strength"]
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signals_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_settings: {
+        Row: {
+          aggressiveness: string
+          assistant_name: string
+          call_recording_default: boolean
+          can_spam_signature: string
+          created_at: string
+          cta_style: string
+          daily_email_limit: number
+          email_style: string
+          gdpr_tracking: boolean
+          ghost_threshold_days: number
+          integrations: Json
+          source_policies: Json
+          updated_at: string
+          user_id: string
+          voice_accent: string
+          voice_gender: string
+        }
+        Insert: {
+          aggressiveness?: string
+          assistant_name?: string
+          call_recording_default?: boolean
+          can_spam_signature?: string
+          created_at?: string
+          cta_style?: string
+          daily_email_limit?: number
+          email_style?: string
+          gdpr_tracking?: boolean
+          ghost_threshold_days?: number
+          integrations?: Json
+          source_policies?: Json
+          updated_at?: string
+          user_id: string
+          voice_accent?: string
+          voice_gender?: string
+        }
+        Update: {
+          aggressiveness?: string
+          assistant_name?: string
+          call_recording_default?: boolean
+          can_spam_signature?: string
+          created_at?: string
+          cta_style?: string
+          daily_email_limit?: number
+          email_style?: string
+          gdpr_tracking?: boolean
+          ghost_threshold_days?: number
+          integrations?: Json
+          source_policies?: Json
+          updated_at?: string
+          user_id?: string
+          voice_accent?: string
+          voice_gender?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +666,39 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      confidence_level: "high" | "medium" | "low" | "none"
+      evidence_type: "verified" | "calculated" | "inferred" | "unknown"
+      friction_level: "high" | "medium" | "low"
+      lead_classification:
+        | "opportunity"
+        | "strong_opportunity"
+        | "medium_opportunity"
+        | "low_priority"
+        | "bad_fit"
+      lead_stage:
+        | "new"
+        | "reviewed"
+        | "contact_drafted"
+        | "queued"
+        | "sent"
+        | "replied"
+        | "demo_scheduled"
+        | "proposal_sent"
+        | "negotiating"
+        | "closed_won"
+        | "closed_lost"
+        | "ghost"
+      outreach_channel: "email" | "sms" | "call" | "dm"
+      outreach_status:
+        | "draft"
+        | "verified"
+        | "queued"
+        | "sent"
+        | "failed"
+        | "replied"
+        | "rejected"
+      priority_level: "high" | "medium" | "low"
+      signal_strength: "strong" | "medium" | "weak" | "unknown"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +825,43 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      confidence_level: ["high", "medium", "low", "none"],
+      evidence_type: ["verified", "calculated", "inferred", "unknown"],
+      friction_level: ["high", "medium", "low"],
+      lead_classification: [
+        "opportunity",
+        "strong_opportunity",
+        "medium_opportunity",
+        "low_priority",
+        "bad_fit",
+      ],
+      lead_stage: [
+        "new",
+        "reviewed",
+        "contact_drafted",
+        "queued",
+        "sent",
+        "replied",
+        "demo_scheduled",
+        "proposal_sent",
+        "negotiating",
+        "closed_won",
+        "closed_lost",
+        "ghost",
+      ],
+      outreach_channel: ["email", "sms", "call", "dm"],
+      outreach_status: [
+        "draft",
+        "verified",
+        "queued",
+        "sent",
+        "failed",
+        "replied",
+        "rejected",
+      ],
+      priority_level: ["high", "medium", "low"],
+      signal_strength: ["strong", "medium", "weak", "unknown"],
+    },
   },
 } as const
