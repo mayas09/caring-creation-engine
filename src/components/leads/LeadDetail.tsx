@@ -143,9 +143,11 @@ export function LeadDetail({ leadId }: { leadId: string }) {
         )}
         {friction.map((f) => (
           <div key={f.id} className="border-b border-border/60 py-2 text-sm last:border-0">
-            <p>{f.description}</p>
+            <p>{f.point}</p>
             <p className="text-[11px] text-muted-foreground">
-              {f.category} · severity {f.severity}
+              level {f.level}
+              {f.source ? ` · source: ${f.source}` : ""}
+              {f.evidence_code ? ` · ${f.evidence_code}` : ""}
             </p>
           </div>
         ))}
