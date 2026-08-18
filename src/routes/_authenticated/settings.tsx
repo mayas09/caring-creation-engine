@@ -37,6 +37,10 @@ type Form = {
   can_spam_signature: string;
   gdpr_tracking: boolean;
   call_recording_default: boolean;
+  data_retention_days: number;
+  voice_provider: string;
+  voice_gender: string;
+  voice_accent: string;
 };
 
 const DEFAULTS: Form = {
@@ -49,6 +53,10 @@ const DEFAULTS: Form = {
   can_spam_signature: "",
   gdpr_tracking: false,
   call_recording_default: false,
+  data_retention_days: 365,
+  voice_provider: "none",
+  voice_gender: "neutral",
+  voice_accent: "neutral",
 };
 
 function SettingsPage() {
@@ -182,6 +190,14 @@ function SettingsPage() {
               onCheckedChange={(v) => setForm({ ...form, gdpr_tracking: v })}
             />
           </div>
+          <Field label="Data retention (days)">
+            <Input
+              type="number"
+              min={30}
+              value={form.data_retention_days}
+              onChange={(e) => setForm({ ...form, data_retention_days: Number(e.target.value) })}
+            />
+          </Field>
           <div className="flex items-center justify-between">
             <Label htmlFor="rec">Record calls by default</Label>
             <Switch
@@ -190,6 +206,38 @@ function SettingsPage() {
               onCheckedChange={(v) => setForm({ ...form, call_recording_default: v })}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Voice</CardTitle>
+          <CardDescription>
+            Calls always open with an AI identity disclosure — this cannot be disabled.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Field label="Provider">
+            <Select
+              value={form.voice_provider}
+              onChange={(v) => setForm({ ...form, voice_provider: v })}
+              options={["none", "manual", "elevenlabs", "twilio"]}
+            />
+          </Field>
+          <Field label="Voice gender">
+            <Select
+              value={form.voice_gender}
+              onChange={(v) => setForm({ ...form, voice_gender: v })}
+              options={["neutral", "female", "male"]}
+            />
+          </Field>
+          <Field label="Accent">
+            <Select
+              value={form.voice_accent}
+              onChange={(v) => setForm({ ...form, voice_accent: v })}
+              options={["neutral", "american", "british", "australian"]}
+            />
+          </Field>
         </CardContent>
       </Card>
 

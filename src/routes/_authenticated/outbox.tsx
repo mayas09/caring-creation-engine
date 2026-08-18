@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { markMessageSent } from "@/lib/research.functions";
+import { queueMessage, runFinalVerification } from "@/lib/ops.functions";
 import { formatChecked } from "@/lib/evidence";
 
 export const Route = createFileRoute("/_authenticated/outbox")({
@@ -34,6 +35,30 @@ type Verification = { passed: boolean; issues: string[]; wordCount: number } | n
 function OutboxPage() {
   const qc = useQueryClient();
   const send = useServerFn(markMessageSent);
+  const queueFn = useServerFn(queueMessage);
+  const recheckFn = useServerFn(runFinalVerification);
+
+  const queue = useMutation({
+    mutationFn: (id: string) => queueFn({ data: { messageId: id } }),
+    onSuccess: (r) => {
+      if (r.queued) {
+        toast.success(`Queued. ${r.note ?? ""}`);
+        void qc.invalidateQueries({ queryKey: ["outbox"] });
+      } else {
+        toast.error(r.issues.join(" · "));
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const recheck = useMutation({
+    mutationFn: (id: string) => recheckFn({ data: { messageId: id } }),
+    onSuccess: (r) =>
+      r.passed
+        ? toast.success(`Final check passed for ${r.codes.length} evidence codes.`)
+        : toast.warning(r.issues.join(" · ")),
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ["outbox"],
@@ -110,6 +135,24 @@ function OutboxPage() {
                 )}
                 {m.status !== "sent" && (
                   <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={recheck.isPending}
+                      onClick={() => recheck.mutate(m.id)}
+                    >
+                      Final evidence check
+                    </Button>
+                    {m.status !== "queued" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={queue.isPending}
+                        onClick={() => queue.mutate(m.id)}
+                      >
+                        Queue send
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       disabled={mark.isPending || !m.verification_passed}
