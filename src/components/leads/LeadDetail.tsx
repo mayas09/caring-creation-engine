@@ -1,19 +1,24 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Wand2 } from "lucide-react";
+import { Wand2, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ClaimRow, EvidenceBadge, FreshnessTag } from "@/components/evidence/EvidenceBadge";
 import { CLASSIFICATION_LABEL, STAGE_LABEL, type EvidenceType } from "@/lib/evidence";
-import { draftOutreachEmail } from "@/lib/ai.functions";
+import { generateOutreach, runLeadAudit } from "@/lib/research.functions";
+
+type DraftResult = { subject: string; body: string; passed: boolean; issues: string[] };
 
 export function LeadDetail({ leadId }: { leadId: string }) {
-  const draft = useServerFn(draftOutreachEmail);
-  const [email, setEmail] = useState<string | null>(null);
+  const qc = useQueryClient();
+  const draft = useServerFn(generateOutreach);
+  const audit = useServerFn(runLeadAudit);
+  const [draftResult, setDraftResult] = useState<DraftResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const [auditing, setAuditing] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["lead", leadId],
@@ -45,11 +50,32 @@ export function LeadDetail({ leadId }: { leadId: string }) {
     setBusy(true);
     try {
       const res = await draft({ data: { leadId, style: "short", ctaStyle: "soft" } });
-      setEmail(res.content);
+      setDraftResult({
+        subject: res.message?.subject ?? "",
+        body: res.message?.body ?? "",
+        passed: res.verification.passed,
+        issues: res.verification.issues,
+      });
+      void qc.invalidateQueries({ queryKey: ["outbox"] });
+      void qc.invalidateQueries({ queryKey: ["leads"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Draft failed");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function runAudit() {
+    setAuditing(true);
+    try {
+      const res = await audit({ data: { leadId } });
+      toast.success(`Audit complete — ${res.evidence.length} claims logged.`);
+      void qc.invalidateQueries({ queryKey: ["lead", leadId] });
+      void qc.invalidateQueries({ queryKey: ["leads"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Audit failed");
+    } finally {
+      setAuditing(false);
     }
   }
 
@@ -177,14 +203,42 @@ export function LeadDetail({ leadId }: { leadId: string }) {
       <Separator />
 
       <div className="space-y-3">
-        <Button size="sm" onClick={() => void generate()} disabled={busy || lead.do_not_contact}>
-          <Wand2 className="size-4" /> {busy ? "Drafting…" : "Draft outreach email"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => void runAudit()} disabled={auditing}>
+            <Search className="size-4" /> {auditing ? "Auditing…" : "Run evidence audit"}
+          </Button>
+          <Button size="sm" onClick={() => void generate()} disabled={busy || lead.do_not_contact}>
+            <Wand2 className="size-4" /> {busy ? "Drafting…" : "Draft verified outreach"}
+          </Button>
+        </div>
         {lead.do_not_contact && (
           <p className="text-xs text-danger">Marked do-not-contact — outreach is blocked.</p>
         )}
-        {email && (
-          <pre className="whitespace-pre-wrap rounded-md bg-muted p-3 text-xs leading-relaxed">{email}</pre>
+        {draftResult && (
+          <div className="space-y-2 rounded-md border border-border p-3">
+            <p className="text-sm font-medium">{draftResult.subject}</p>
+            <pre className="whitespace-pre-wrap text-xs leading-relaxed">{draftResult.body}</pre>
+            <div
+              className={
+                draftResult.passed
+                  ? "rounded border border-success/30 bg-success/10 p-2 text-xs text-success"
+                  : "rounded border border-warning/30 bg-warning/10 p-2 text-xs text-warning"
+              }
+            >
+              {draftResult.passed ? (
+                <p>Verification passed — no unsupported numbers, no hype.</p>
+              ) : (
+                <ul className="list-disc pl-4">
+                  {draftResult.issues.map((i) => (
+                    <li key={i}>{i}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Saved to the outbox as {draftResult.passed ? "verified" : "draft"}.
+            </p>
+          </div>
         )}
       </div>
     </div>
