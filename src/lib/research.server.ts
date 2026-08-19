@@ -209,13 +209,13 @@ export async function auditLead(supabase: SupabaseClient, userId: string, leadId
       5,
     ).catch(() => []);
     searchNote = hits.map((h) => `- ${h.title} — ${h.url}\n  ${h.description}`).join("\n") || "- none";
-    const own = hits.find(
-      (h) => !/yelp|tripadvisor|facebook|instagram|google\.|wikipedia|reddit|ubereats|doordash/i.test(h.url),
-    );
+    const own = hits.find((h) => !DIRECTORY.test(h.url));
     siteUrl = own?.url ?? null;
   }
+  const isDirectory = siteUrl ? DIRECTORY.test(siteUrl) : false;
 
   let facts: ReturnType<typeof extractPageFacts> | null = null;
+
   let scrapeError: string | null = null;
   let pageExcerpt = "";
   if (siteUrl) {
