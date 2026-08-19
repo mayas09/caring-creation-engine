@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Wand2, Search, Check, X, ShieldAlert, PhoneCall } from "lucide-react";
+import { Wand2, Search, Check, X, ShieldAlert, PhoneCall, MapPin, CalendarCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -11,6 +11,7 @@ import { CLASSIFICATION_LABEL, STAGE_LABEL, type EvidenceType } from "@/lib/evid
 import { generateOutreach, runLeadAudit } from "@/lib/research.functions";
 import { decideLead, qualifyLead } from "@/lib/discovery.functions";
 import { generateCallScript } from "@/lib/voice.functions";
+import { confirmDemo, enrichLeadFromMaps } from "@/lib/integrations.functions";
 
 type DraftResult = { subject: string; body: string; passed: boolean; issues: string[] };
 
@@ -27,6 +28,9 @@ export function LeadDetail({ leadId }: { leadId: string }) {
   const decide = useServerFn(decideLead);
   const qualify = useServerFn(qualifyLead);
   const script = useServerFn(generateCallScript);
+  const enrich = useServerFn(enrichLeadFromMaps);
+  const demo = useServerFn(confirmDemo);
+  const [enriching, setEnriching] = useState(false);
   const [scriptText, setScriptText] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -109,6 +113,31 @@ export function LeadDetail({ leadId }: { leadId: string }) {
       void qc.invalidateQueries({ queryKey: ["lead", leadId] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  }
+
+  async function runEnrich() {
+    setEnriching(true);
+    try {
+      const res = await enrich({ data: { leadId } });
+      toast[res.matched ? "success" : "warning"](res.message);
+      void qc.invalidateQueries({ queryKey: ["lead", leadId] });
+      void qc.invalidateQueries({ queryKey: ["leads"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Google Maps lookup failed");
+    } finally {
+      setEnriching(false);
+    }
+  }
+
+  async function runConfirmDemo() {
+    try {
+      const res = await demo({ data: { leadId } });
+      toast[res.confirmed ? "success" : "warning"](res.message);
+      void qc.invalidateQueries({ queryKey: ["lead", leadId] });
+      void qc.invalidateQueries({ queryKey: ["leads"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Calendar lookup failed");
     }
   }
 
@@ -296,6 +325,12 @@ export function LeadDetail({ leadId }: { leadId: string }) {
           </Button>
           <Button size="sm" variant="outline" onClick={() => void makeScript()} disabled={lead.do_not_contact}>
             <PhoneCall className="size-4" /> Call script
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => void runEnrich()} disabled={enriching}>
+            <MapPin className="size-4" /> {enriching ? "Checking Maps…" : "Verify on Google Maps"}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => void runConfirmDemo()}>
+            <CalendarCheck className="size-4" /> Confirm demo from calendar
           </Button>
         </div>
         {scriptText && (
