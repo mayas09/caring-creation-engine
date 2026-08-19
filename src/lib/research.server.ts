@@ -196,6 +196,9 @@ export async function auditLead(supabase: SupabaseClient, userId: string, leadId
   if (!lead) throw new Error("Lead not found.");
 
   const { scrapePage, extractPageFacts, webSearch } = await import("./providers.server");
+  const DIRECTORY =
+    /tripadvisor|yelp|yellowpages|foursquare|zomato|wikipedia|reddit|facebook\.com|instagram\.com|google\.[a-z]|ubereats|deliveroo|glovo|justeat|doordash|thefork|opentable/i;
+
 
   // 1) Live observation: scrape the site, or search for it when we have no URL.
   let siteUrl: string | null = lead.website ?? null;
