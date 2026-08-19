@@ -214,7 +214,7 @@ HARD RULES:
         country: c.country || null,
         website: c.website || null,
         instagram: c.instagram || null,
-        source: "ai_discovery",
+        source: "live_web_search",
         discovery_search_id: search.id,
         stage: "new",
         approval_status: disqualifier ? "rejected" : "pending",
@@ -228,18 +228,22 @@ HARD RULES:
       .single();
     if (error) continue;
 
-    const rows = [
-      ...c.known_facts.map((f) => ({
+    const rows = c.known_facts.map((f) => {
+      const src = /source:\s*(https?:\/\/\S+?)\)?$/i.exec(f.trim())?.[1] ?? null;
+      return {
         user_id: userId,
         lead_id: lead.id,
         title: f,
-        detail: "Recalled by the model, not observed. Must be checked against a live source.",
+        detail: src
+          ? "Taken from a live web search result. Confirm on the page itself before quoting it."
+          : "Extracted from search results without a source URL — treat as unverified.",
         strength: "unknown" as const,
-        confidence: "none" as const,
-        source: "AI recollection (unverified)",
-      })),
-    ];
+        confidence: src ? ("low" as const) : ("none" as const),
+        source: src ?? "live web search (no URL captured)",
+      };
+    });
     if (rows.length) await supabase.from("signals").insert(rows);
+
 
     await supabase.from("activities").insert({
       user_id: userId,
