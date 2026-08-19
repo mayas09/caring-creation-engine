@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { markMessageSent } from "@/lib/research.functions";
-import { queueMessage, runFinalVerification } from "@/lib/ops.functions";
+import { queueMessage, runFinalVerification, sendOutreachEmail } from "@/lib/ops.functions";
 import { formatChecked } from "@/lib/evidence";
 
 export const Route = createFileRoute("/_authenticated/outbox")({
