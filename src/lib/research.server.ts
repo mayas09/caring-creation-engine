@@ -195,16 +195,68 @@ export async function auditLead(supabase: SupabaseClient, userId: string, leadId
   if (error) throw new Error(error.message);
   if (!lead) throw new Error("Lead not found.");
 
+  const { scrapePage, extractPageFacts, webSearch } = await import("./providers.server");
+  const DIRECTORY =
+    /tripadvisor|yelp|yellowpages|foursquare|zomato|wikipedia|reddit|facebook\.com|instagram\.com|google\.[a-z]|ubereats|deliveroo|glovo|justeat|doordash|thefork|opentable/i;
+
+
+  // 1) Live observation: scrape the site, or search for it when we have no URL.
+  let siteUrl: string | null = lead.website ?? null;
+  let searchNote = "";
+  if (!siteUrl) {
+    const hits = await webSearch(
+      `${lead.business_name} ${lead.city ?? ""} ${lead.industry ?? ""} official website`.trim(),
+      5,
+    ).catch(() => []);
+    searchNote = hits.map((h) => `- ${h.title} — ${h.url}\n  ${h.description}`).join("\n") || "- none";
+    const own = hits.find((h) => !DIRECTORY.test(h.url));
+    siteUrl = own?.url ?? null;
+  }
+  const isDirectory = siteUrl ? DIRECTORY.test(siteUrl) : false;
+
+  let facts: ReturnType<typeof extractPageFacts> | null = null;
+
+  let scrapeError: string | null = null;
+  let pageExcerpt = "";
+  if (siteUrl) {
+    try {
+      const page = await scrapePage(siteUrl);
+      facts = extractPageFacts(page);
+      pageExcerpt = page.markdown.slice(0, 6000);
+    } catch (e) {
+      scrapeError = e instanceof Error ? e.message : "scrape failed";
+    }
+  }
+
+  const observed = facts
+    ? `OBSERVED ON ${siteUrl} (live scrape, ${new Date().toISOString()}):
+- HTTP status: ${facts.statusCode ?? "unknown"} (reachable: ${facts.reachable})
+- Page title: ${facts.title || "(none)"}
+- Third-party ordering/booking platforms linked: ${facts.thirdParty.join(", ") || "none found"}
+- Menu links found: ${facts.menuLinks.join(", ") || "none"}
+- Order/cart/checkout links found: ${facts.orderLinks.join(", ") || "none"}
+- "Order online" wording present: ${facts.hasOrderWord}
+- Contact emails on page: ${facts.emails.join(", ") || "none"}
+- Phones on page: ${facts.phones.join(", ") || "none"}
+- Socials: ${Object.entries(facts.socials).map(([k, v]) => `${k}=${v ?? "none"}`).join(", ")}
+
+PAGE CONTENT EXCERPT:
+${pageExcerpt}`
+    : `NO PAGE OBSERVED. ${scrapeError ? `Scrape failed: ${scrapeError}.` : "No website URL known."}
+${searchNote ? `Live search results:\n${searchNote}` : ""}`;
+
   const known = JSON.stringify(lead, null, 2);
   const user = `Audit this business as a direct-ordering opportunity.
 
-Only these stored fields may be treated as [Verified]; everything else is [Inferred] or [Unknown]:
+STORED FIELDS (may be treated as [Verified]):
 ${known}
 
+${observed}
+
 Rules:
+- "verified" is allowed ONLY for facts in the stored fields or directly visible in the OBSERVED block above; cite the source URL in the source field.
+- Anything not observed is "unknown" — add the concrete check to checks_needed.
 - Never invent URLs, platform names, revenue, order volumes or commission rates.
-- If a field is missing, mark the related claim "unknown" and add what to check to checks_needed.
-- "verified" is only allowed for facts present in the stored fields above.
 - gap_summary and best_angle must be one short, honest sentence each, no hype.
 - Empty strings are allowed where nothing is known.`;
 
@@ -216,8 +268,50 @@ Rules:
   });
 
   const now = new Date();
+
+  // 2) Deterministic evidence from the live page — not model output.
+  if (facts && siteUrl) {
+    const src = siteUrl;
+    const observedEvidence: AuditResult["evidence"] = [
+      {
+        claim: `Website ${src} responded with HTTP ${facts.statusCode ?? "200"}${facts.title ? ` — "${facts.title}"` : ""}`,
+        type: "verified",
+        source: src,
+        method: "Live page fetch",
+        confidence: "high",
+      },
+      {
+        claim: facts.thirdParty.length
+          ? `Page links to third-party ordering/booking platforms: ${facts.thirdParty.join(", ")}`
+          : "No third-party ordering platform link found on the scraped page",
+        type: "verified",
+        source: src,
+        method: "Link scan of scraped page",
+        confidence: facts.thirdParty.length ? "high" : "medium",
+      },
+      {
+        claim: facts.orderLinks.length
+          ? `Order/checkout links found on page: ${facts.orderLinks.slice(0, 3).join(", ")}`
+          : "No order/cart/checkout link found on the scraped page",
+        type: "verified",
+        source: src,
+        method: "Link scan of scraped page",
+        confidence: "medium",
+      },
+    ];
+    result.evidence = [...observedEvidence, ...result.evidence];
+    if (facts.thirdParty.length) {
+      result.ordering_gap.third_party_platforms = Array.from(
+        new Set([...facts.thirdParty, ...result.ordering_gap.third_party_platforms]),
+      );
+    }
+    result.ordering_gap.website_found = facts.reachable ? "verified" : result.ordering_gap.website_found;
+    if (facts.menuLinks.length || facts.hasMenuWord) result.ordering_gap.menu_found = "verified";
+  }
+
   const gap = result.ordering_gap;
   const codes = result.evidence.map((_, i) => evidenceCode(i + 1, now));
+
 
   await supabase.from("evidence").delete().eq("lead_id", leadId).eq("user_id", userId);
   if (result.evidence.length > 0) {
@@ -295,6 +389,17 @@ Rules:
       best_angle: result.best_angle || null,
       why_this_lead: result.why_this_lead,
       stage: lead.stage === "new" ? "reviewed" : lead.stage,
+      ...(siteUrl && !lead.website && !isDirectory ? { website: siteUrl } : {}),
+      ...(facts?.emails[0] && !lead.email && !isDirectory ? { email: facts.emails[0] } : {}),
+      ...(facts?.phones[0] && !lead.phone && !isDirectory ? { phone: facts.phones[0] } : {}),
+      ...(facts?.socials.instagram && !lead.instagram && !isDirectory
+        ? { instagram: facts.socials.instagram }
+        : {}),
+      ...(facts?.socials.facebook && !lead.facebook && !isDirectory
+        ? { facebook: facts.socials.facebook }
+        : {}),
+
+
     })
     .eq("id", leadId);
 

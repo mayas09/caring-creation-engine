@@ -153,3 +153,130 @@ export const listStaleEvidence = createServerFn({ method: "POST" })
       leadName: ((e as { leads?: { business_name?: string } }).leads?.business_name ?? "Unknown lead") as string,
     }));
   });
+
+export const listEmailDomains = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { listMailgunDomains } = await import("./providers.server");
+    try {
+      return { connected: true, domains: await listMailgunDomains(), error: null as string | null };
+    } catch (e) {
+      return { connected: false, domains: [], error: e instanceof Error ? e.message : "unavailable" };
+    }
+  });
+
+/** Actually sends a verified draft through the connected email provider. */
+export const sendOutreachEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ messageId: z.string().uuid(), override: z.boolean().default(false) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: msg } = await supabase
+      .from("outreach_messages")
+      .select("*, leads(id,business_name,email,do_not_contact)")
+      .eq("id", data.messageId)
+      .maybeSingle();
+    if (!msg) throw new Error("Message not found.");
+    if (msg.status === "sent") throw new Error("This message was already sent.");
+
+    const lead = msg.leads as { id: string; business_name: string; email: string | null; do_not_contact: boolean } | null;
+    if (!lead?.email) throw new Error("This lead has no email address on file.");
+    if (lead.do_not_contact) throw new Error("This lead is marked do-not-contact.");
+    if (!msg.verification_passed && !data.override) {
+      throw new Error("Verification has not passed. Re-check the draft or send with a logged override.");
+    }
+
+    const { data: settings } = await supabase
+      .from("user_settings")
+      .select("integrations,daily_email_limit,can_spam_signature")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const integrations = (settings?.integrations ?? {}) as Record<string, string | undefined>;
+    const domain = integrations["mailgun_domain"];
+    const fromEmail = integrations["from_email"];
+    if (!domain || !fromEmail) {
+      throw new Error("Set the sending domain and from-address in Settings → Integrations first.");
+    }
+
+    const { data: dnc } = await supabase.from("dnc_entries").select("value").eq("user_id", userId);
+    const blocked = new Set((dnc ?? []).map((d) => d.value.toLowerCase().trim()));
+    const emailLower = lead.email.toLowerCase();
+    if (blocked.has(emailLower) || blocked.has(emailLower.split("@")[1] ?? "")) {
+      throw new Error("Recipient is on the do-not-contact list.");
+    }
+
+    const startToday = new Date();
+    startToday.setHours(0, 0, 0, 0);
+    const { count } = await supabase
+      .from("outreach_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gte("sent_at", startToday.toISOString());
+    const limit = settings?.daily_email_limit ?? 15;
+    if ((count ?? 0) >= limit) {
+      throw new Error(`Configured daily send limit reached (${count}/${limit}).`);
+    }
+
+    const signature = settings?.can_spam_signature ?? "";
+    const body = signature ? `${msg.body}\n\n—\n${signature}` : msg.body;
+    const fromName = integrations["from_name"];
+
+    const { sendEmail } = await import("./providers.server");
+    let providerId = "";
+    try {
+      const sent = await sendEmail(
+        {
+          domain,
+          from: fromName ? `${fromName} <${fromEmail}>` : fromEmail,
+          replyTo: integrations["reply_to"] ?? null,
+        },
+        {
+          to: lead.email,
+          subject: msg.subject ?? `Quick note for ${lead.business_name}`,
+          text: body,
+          tags: ["leadgen-ai-pro"],
+        },
+      );
+      providerId = sent.id;
+    } catch (e) {
+      const reason = e instanceof Error ? e.message : "send failed";
+      await supabase.from("outreach_messages").update({ status: "failed" }).eq("id", data.messageId);
+      await supabase.from("activities").insert({
+        user_id: userId,
+        lead_id: lead.id,
+        kind: "send_failed",
+        description: `Email send failed: ${reason}`,
+        metadata: { message_id: data.messageId },
+      });
+      throw new Error(reason);
+    }
+
+    const sentAt = new Date().toISOString();
+    await supabase
+      .from("outreach_messages")
+      .update({
+        status: "sent",
+        sent_at: sentAt,
+        override_logged: data.override ? true : msg.override_logged,
+        reasoning: { ...(msg.reasoning as Record<string, unknown>), provider: "mailgun", provider_id: providerId },
+      })
+      .eq("id", data.messageId);
+    await supabase
+      .from("leads")
+      .update({ stage: "sent", last_contacted_at: sentAt })
+      .eq("id", lead.id);
+    await supabase.from("activities").insert({
+      user_id: userId,
+      lead_id: lead.id,
+      kind: "sent",
+      description: data.override
+        ? `Email sent to ${lead.email} WITH a logged verification override.`
+        : `Email sent to ${lead.email} after verification passed.`,
+      metadata: { message_id: data.messageId, provider_id: providerId, domain },
+    });
+
+    return { sent: true, providerId, to: lead.email, sentAt };
+  });

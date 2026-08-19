@@ -135,10 +135,11 @@ function DiscoveryPage() {
 
       <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
         <ShieldAlert className="mr-1 inline size-3.5" />
-        No Google Maps, Yelp or social API is connected. Discovery produces research candidates labeled
-        Unknown, with the exact checks needed. Source data policies are configurable in Settings and must be
-        verified before any automated retrieval is enabled.
+        Candidates come from a live web search, so every one carries a real source URL. Google Maps, Yelp
+        and social APIs are still not connected — ratings, review counts and ownership stay Unknown until an
+        audit observes them on the page itself.
       </div>
+
 
       <Card>
         <CardHeader>

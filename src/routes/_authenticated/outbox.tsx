@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { markMessageSent } from "@/lib/research.functions";
-import { queueMessage, runFinalVerification } from "@/lib/ops.functions";
+import { queueMessage, runFinalVerification, sendOutreachEmail } from "@/lib/ops.functions";
 import { formatChecked } from "@/lib/evidence";
 
 export const Route = createFileRoute("/_authenticated/outbox")({
@@ -36,6 +36,19 @@ function OutboxPage() {
   const qc = useQueryClient();
   const send = useServerFn(markMessageSent);
   const queueFn = useServerFn(queueMessage);
+  const sendNowFn = useServerFn(sendOutreachEmail);
+
+  const sendNow = useMutation({
+    mutationFn: (vars: { id: string; override: boolean }) =>
+      sendNowFn({ data: { messageId: vars.id, override: vars.override } }),
+    onSuccess: (r) => {
+      toast.success(`Email delivered to ${r.to}`);
+      void qc.invalidateQueries({ queryKey: ["outbox"] });
+      void qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const recheckFn = useServerFn(runFinalVerification);
 
   const queue = useMutation({
@@ -65,7 +78,7 @@ function OutboxPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("outreach_messages")
-        .select("*, leads(business_name, city)")
+        .select("*, leads(business_name, city, email)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -104,7 +117,7 @@ function OutboxPage() {
       <div className="grid gap-3 xl:grid-cols-2">
         {messages.map((m) => {
           const v = m.verification as Verification;
-          const lead = m.leads as { business_name?: string; city?: string | null } | null;
+          const lead = m.leads as { business_name?: string; city?: string | null; email?: string | null } | null;
           return (
             <Card key={m.id}>
               <CardHeader>
@@ -155,10 +168,18 @@ function OutboxPage() {
                     )}
                     <Button
                       size="sm"
+                      disabled={sendNow.isPending || !m.verification_passed || !lead?.email}
+                      onClick={() => sendNow.mutate({ id: m.id, override: false })}
+                    >
+                      {sendNow.isPending ? "Sending…" : "Send email now"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
                       disabled={mark.isPending || !m.verification_passed}
                       onClick={() => mark.mutate({ id: m.id, override: false })}
                     >
-                      Mark sent
+                      Mark sent manually
                     </Button>
                     {!m.verification_passed && (
                       <Button
@@ -170,6 +191,7 @@ function OutboxPage() {
                         Send with logged override
                       </Button>
                     )}
+
                   </div>
                 )}
                 {m.override_logged && (
