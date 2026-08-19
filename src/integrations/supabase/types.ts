@@ -179,6 +179,63 @@ export type Database = {
           },
         ]
       }
+      delivery_events: {
+        Row: {
+          created_at: string
+          detail: string | null
+          event: string
+          id: string
+          label: string
+          lead_id: string | null
+          message_id: string | null
+          occurred_at: string
+          payload: Json
+          provider: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          event: string
+          id?: string
+          label?: string
+          lead_id?: string | null
+          message_id?: string | null
+          occurred_at?: string
+          payload?: Json
+          provider?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          event?: string
+          id?: string
+          label?: string
+          lead_id?: string | null
+          message_id?: string | null
+          occurred_at?: string
+          payload?: Json
+          provider?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_events_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discovery_searches: {
         Row: {
           created_at: string
@@ -538,14 +595,20 @@ export type Database = {
       outreach_messages: {
         Row: {
           body: string
+          bounce_reason: string | null
+          bounced_at: string | null
           campaign_id: string | null
           channel: Database["public"]["Enums"]["outreach_channel"]
           created_at: string
+          delivered_at: string | null
           evidence_codes: string[]
           id: string
           is_bump: boolean
           lead_id: string
+          open_count: number
+          opened_at: string | null
           override_logged: boolean
+          provider_message_id: string | null
           reasoning: Json
           replied_at: string | null
           scheduled_at: string | null
@@ -553,6 +616,7 @@ export type Database = {
           status: Database["public"]["Enums"]["outreach_status"]
           step_index: number
           subject: string | null
+          tracking_token: string
           updated_at: string
           user_id: string
           verification: Json | null
@@ -561,14 +625,20 @@ export type Database = {
         }
         Insert: {
           body: string
+          bounce_reason?: string | null
+          bounced_at?: string | null
           campaign_id?: string | null
           channel?: Database["public"]["Enums"]["outreach_channel"]
           created_at?: string
+          delivered_at?: string | null
           evidence_codes?: string[]
           id?: string
           is_bump?: boolean
           lead_id: string
+          open_count?: number
+          opened_at?: string | null
           override_logged?: boolean
+          provider_message_id?: string | null
           reasoning?: Json
           replied_at?: string | null
           scheduled_at?: string | null
@@ -576,6 +646,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["outreach_status"]
           step_index?: number
           subject?: string | null
+          tracking_token?: string
           updated_at?: string
           user_id: string
           verification?: Json | null
@@ -584,14 +655,20 @@ export type Database = {
         }
         Update: {
           body?: string
+          bounce_reason?: string | null
+          bounced_at?: string | null
           campaign_id?: string | null
           channel?: Database["public"]["Enums"]["outreach_channel"]
           created_at?: string
+          delivered_at?: string | null
           evidence_codes?: string[]
           id?: string
           is_bump?: boolean
           lead_id?: string
+          open_count?: number
+          opened_at?: string | null
           override_logged?: boolean
+          provider_message_id?: string | null
           reasoning?: Json
           replied_at?: string | null
           scheduled_at?: string | null
@@ -599,6 +676,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["outreach_status"]
           step_index?: number
           subject?: string | null
+          tracking_token?: string
           updated_at?: string
           user_id?: string
           verification?: Json | null
