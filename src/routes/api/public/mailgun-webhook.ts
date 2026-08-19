@@ -7,7 +7,7 @@ import { createHmac, timingSafeEqual } from "crypto";
  * and inbound replies. Every write is signature-verified first.
  */
 
-type Signature = { timestamp?: string; token?: string; signature?: string };
+type Signature = { timestamp?: string | undefined; token?: string | undefined; signature?: string | undefined };
 
 function verify(sig: Signature): boolean {
   const key = process.env["MAILGUN_WEBHOOK_SIGNING_KEY"];
@@ -133,12 +133,17 @@ export const Route = createFileRoute("/api/public/mailgun-webhook")({
           (event["reason"] as string | undefined) ??
           null;
 
-        const update: Record<string, unknown> = {};
-        if (kind === "delivered") update["delivered_at"] = at;
+        const update: {
+          delivered_at?: string;
+          bounced_at?: string;
+          bounce_reason?: string | null;
+          status?: "failed";
+        } = {};
+        if (kind === "delivered") update.delivered_at = at;
         if (kind === "bounced") {
-          update["bounced_at"] = at;
-          update["bounce_reason"] = reason;
-          update["status"] = "failed";
+          update.bounced_at = at;
+          update.bounce_reason = reason;
+          update.status = "failed";
         }
         if (Object.keys(update).length > 0) {
           await supabaseAdmin.from("outreach_messages").update(update).eq("id", row.id);
