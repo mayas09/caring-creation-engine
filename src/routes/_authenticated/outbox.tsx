@@ -168,10 +168,18 @@ function OutboxPage() {
                     )}
                     <Button
                       size="sm"
+                      disabled={sendNow.isPending || !m.verification_passed || !lead?.email}
+                      onClick={() => sendNow.mutate({ id: m.id, override: false })}
+                    >
+                      {sendNow.isPending ? "Sending…" : "Send email now"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
                       disabled={mark.isPending || !m.verification_passed}
                       onClick={() => mark.mutate({ id: m.id, override: false })}
                     >
-                      Mark sent
+                      Mark sent manually
                     </Button>
                     {!m.verification_passed && (
                       <Button
@@ -183,6 +191,7 @@ function OutboxPage() {
                         Send with logged override
                       </Button>
                     )}
+
                   </div>
                 )}
                 {m.override_logged && (
