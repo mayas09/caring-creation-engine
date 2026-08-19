@@ -233,7 +233,7 @@ HARD RULES:
         disqualify_reason: disqualifier || null,
         best_angle: c.suggested_angle || null,
         why_this_lead: [],
-        notes: c.what_to_check.length ? `Checks needed:\n- ${c.what_to_check.join("\n- ")}` : null,
+        notes: checks.length ? `Checks needed:\n- ${checks.join("\n- ")}` : null,
       })
       .select("id")
       .single();
