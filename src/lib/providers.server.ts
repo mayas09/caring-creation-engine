@@ -182,15 +182,27 @@ export async function listMailgunDomains(): Promise<Array<{ name: string; state:
 /** Sends a real email. Returns the provider message id. */
 export async function sendEmail(
   cfg: MailgunConfig,
-  msg: { to: string; subject: string; text: string; tags?: string[] },
+  msg: {
+    to: string;
+    subject: string;
+    text: string;
+    html?: string | undefined;
+    tags?: string[];
+    variables?: Record<string, string> | undefined;
+  },
 ): Promise<{ id: string; message: string }> {
   const form = new URLSearchParams();
   form.set("from", cfg.from);
   form.set("to", msg.to);
   form.set("subject", msg.subject);
   form.set("text", msg.text);
+  if (msg.html) form.set("html", msg.html);
   if (cfg.replyTo) form.set("h:Reply-To", cfg.replyTo);
   for (const t of msg.tags ?? []) form.append("o:tag", t);
+  if (msg.variables) form.set("v:meta", JSON.stringify(msg.variables));
+  // We never use Mailgun's own open/click tracking; opens are only counted by
+  // our own pixel and are always labelled "estimated".
+  form.set("o:tracking", "no");
 
   const res = await fetch(`${GATEWAY}/mailgun/${encodeURIComponent(cfg.domain)}/messages`, {
     method: "POST",
@@ -202,3 +214,4 @@ export async function sendEmail(
   const json = JSON.parse(text) as { id?: string; message?: string };
   return { id: json.id ?? "", message: json.message ?? "" };
 }
+
