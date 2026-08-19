@@ -78,7 +78,7 @@ function OutboxPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("outreach_messages")
-        .select("*, leads(business_name, city)")
+        .select("*, leads(business_name, city, email)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
