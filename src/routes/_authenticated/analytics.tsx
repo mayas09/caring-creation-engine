@@ -6,6 +6,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { EvidenceBadge } from "@/components/evidence/EvidenceBadge";
 import { STAGE_LABEL, STAGE_ORDER } from "@/lib/evidence";
 
+function download(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export const Route = createFileRoute("/_authenticated/analytics")({
   head: () => ({
     meta: [
@@ -106,10 +115,8 @@ function AnalyticsPage() {
                   created_at: l.created_at,
                 })),
                 evidence: evidence.map((e) => ({
-                  evidence_code: e.evidence_code,
-                  claim: e.claim,
+                  id: e.id,
                   type: e.type,
-                  source: e.source,
                   checked_at: e.checked_at,
                 })),
               };
