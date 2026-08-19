@@ -39,7 +39,7 @@ export async function enrichFromGoogleMaps(
 ) {
   const { data: lead } = await supabase
     .from("leads")
-    .select("id,business_name,city,country,website,phone,disqualifier_reason")
+    .select("id,business_name,city,country,website,phone,disqualify_reason")
     .eq("id", leadId)
     .maybeSingle();
   if (!lead) throw new Error("Lead not found.");
@@ -105,7 +105,7 @@ export async function enrichFromGoogleMaps(
   if (!lead.phone && place.phone) update["phone"] = place.phone;
   if (place.businessStatus === "CLOSED_PERMANENTLY") {
     update["do_not_contact"] = true;
-    update["disqualifier_reason"] = "Business closed (Google Maps: permanently closed)";
+    update["disqualify_reason"] = "Business closed (Google Maps: permanently closed)";
     update["stage"] = "closed_lost";
   }
   if (Object.keys(update).length > 0) {
