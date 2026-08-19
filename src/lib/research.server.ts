@@ -386,11 +386,16 @@ Rules:
       best_angle: result.best_angle || null,
       why_this_lead: result.why_this_lead,
       stage: lead.stage === "new" ? "reviewed" : lead.stage,
-      ...(siteUrl && !lead.website ? { website: siteUrl } : {}),
-      ...(facts?.emails[0] && !lead.email ? { email: facts.emails[0] } : {}),
-      ...(facts?.phones[0] && !lead.phone ? { phone: facts.phones[0] } : {}),
-      ...(facts?.socials.instagram && !lead.instagram ? { instagram: facts.socials.instagram } : {}),
-      ...(facts?.socials.facebook && !lead.facebook ? { facebook: facts.socials.facebook } : {}),
+      ...(siteUrl && !lead.website && !isDirectory ? { website: siteUrl } : {}),
+      ...(facts?.emails[0] && !lead.email && !isDirectory ? { email: facts.emails[0] } : {}),
+      ...(facts?.phones[0] && !lead.phone && !isDirectory ? { phone: facts.phones[0] } : {}),
+      ...(facts?.socials.instagram && !lead.instagram && !isDirectory
+        ? { instagram: facts.socials.instagram }
+        : {}),
+      ...(facts?.socials.facebook && !lead.facebook && !isDirectory
+        ? { facebook: facts.socials.facebook }
+        : {}),
+
 
     })
     .eq("id", leadId);
