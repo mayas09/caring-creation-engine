@@ -67,28 +67,62 @@ function AnalyticsPage() {
         <p className="text-sm text-muted-foreground">
           Every metric shows its formula. Missing inputs render as Unknown, never as an estimate.
         </p>
-        <Button
-          size="sm"
-          variant="outline"
-          className="mt-3"
-          onClick={() => {
-            const header = "business_name,stage,classification,source,created_at";
-            const rows = leads.map((l) =>
-              [l.business_name, l.stage, l.classification, l.source ?? "unknown", l.created_at]
-                .map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`)
-                .join(","),
-            );
-            const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "leads-export.csv";
-            a.click();
-            URL.revokeObjectURL(url);
-          }}
-        >
-          Export leads CSV
-        </Button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const header = "business_name,stage,classification,source,created_at";
+              const rows = leads.map((l) =>
+                [l.business_name, l.stage, l.classification, l.source ?? "unknown", l.created_at]
+                  .map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`)
+                  .join(","),
+              );
+              download(
+                new Blob([[header, ...rows].join("\n")], { type: "text/csv" }),
+                "leads-export.csv",
+              );
+            }}
+          >
+            Export leads CSV
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const payload = {
+                exported_at: new Date().toISOString(),
+                metrics: {
+                  messages_sent: sent,
+                  reply_rate_pct: replyRate === "—" ? null : Number(replyRate),
+                  win_rate_pct: winRate === "—" ? null : Number(winRate),
+                  evidence_coverage_pct: coverage,
+                },
+                leads: leads.map((l) => ({
+                  business_name: l.business_name,
+                  stage: l.stage,
+                  classification: l.classification,
+                  source: l.source ?? "unknown",
+                  created_at: l.created_at,
+                })),
+                evidence: evidence.map((e) => ({
+                  evidence_code: e.evidence_code,
+                  claim: e.claim,
+                  type: e.type,
+                  source: e.source,
+                  checked_at: e.checked_at,
+                })),
+              };
+              download(
+                new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }),
+                "leadgen-export.json",
+              );
+            }}
+          >
+            Export JSON
+          </Button>
+        </div>
+
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
