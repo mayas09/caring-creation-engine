@@ -224,6 +224,20 @@ export const sendOutreachEmail = createServerFn({ method: "POST" })
     const body = signature ? `${msg.body}\n\n—\n${signature}` : msg.body;
     const fromName = integrations["from_name"];
 
+    // Open tracking is opt-in and always labelled "estimated" in the UI.
+    const trackingOn = integrations["open_tracking"] === "on";
+    const baseUrl = (integrations["public_base_url"] ?? "").replace(/\/+$/, "");
+    const pixelUrl =
+      trackingOn && baseUrl && msg.tracking_token
+        ? `${baseUrl}/api/public/px/${msg.tracking_token}`
+        : null;
+    const html = pixelUrl
+      ? `<div style="white-space:pre-wrap;font-family:inherit">${body
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")}</div><img src="${pixelUrl}" width="1" height="1" alt="" style="display:none">`
+      : undefined;
+
     const { sendEmail } = await import("./providers.server");
     let providerId = "";
     try {
@@ -237,6 +251,7 @@ export const sendOutreachEmail = createServerFn({ method: "POST" })
           to: lead.email,
           subject: msg.subject ?? `Quick note for ${lead.business_name}`,
           text: body,
+          html,
           tags: ["leadgen-ai-pro"],
         },
       );
@@ -260,10 +275,12 @@ export const sendOutreachEmail = createServerFn({ method: "POST" })
       .update({
         status: "sent",
         sent_at: sentAt,
+        provider_message_id: providerId.replace(/^<|>$/g, ""),
         override_logged: data.override ? true : msg.override_logged,
         reasoning: { ...(msg.reasoning as Record<string, unknown>), provider: "mailgun", provider_id: providerId },
       })
       .eq("id", data.messageId);
+
     await supabase
       .from("leads")
       .update({ stage: "sent", last_contacted_at: sentAt })
