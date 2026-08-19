@@ -127,9 +127,24 @@ function OutboxPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
+                {m.sent_at && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Delivery:{" "}
+                    {m.bounced_at
+                      ? `Bounced (verified) — ${m.bounce_reason ?? "no reason given"}`
+                      : m.delivered_at
+                        ? `Delivered (verified by provider) ${formatChecked(m.delivered_at)}`
+                        : "Sent — awaiting provider confirmation"}
+                    {m.replied_at ? ` · Replied (verified) ${formatChecked(m.replied_at)}` : ""}
+                    {m.opened_at
+                      ? ` · Opened ×${m.open_count ?? 1} (estimated — pixel loads are not proof of reading)`
+                      : ""}
+                  </p>
+                )}
                 <pre className="max-h-56 overflow-y-auto whitespace-pre-wrap rounded-md bg-muted p-3 text-xs leading-relaxed">
                   {m.body}
                 </pre>
+
                 <p className="text-[11px] text-muted-foreground">
                   Evidence used: {m.evidence_codes.length ? m.evidence_codes.join(", ") : "none"} ·{" "}
                   {m.word_count ?? 0} words
