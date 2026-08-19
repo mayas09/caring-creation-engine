@@ -355,8 +355,41 @@ function SettingsPage() {
             Sandbox domains only deliver to addresses you authorised with the provider. Verify your own
             domain for real prospects.
           </p>
+          <Field label="Public base URL (for delivery tracking)">
+            <Input
+              value={form.integrations["public_base_url"] ?? ""}
+              placeholder="https://your-app.lovable.app"
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  integrations: { ...form.integrations, public_base_url: e.target.value },
+                })
+              }
+            />
+          </Field>
+          <Field label="Open tracking pixel">
+            <select
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={form.integrations["open_tracking"] ?? "off"}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  integrations: { ...form.integrations, open_tracking: e.target.value },
+                })
+              }
+            >
+              <option value="off">Off</option>
+              <option value="on">On — opens recorded as “estimated”</option>
+            </select>
+          </Field>
+          <p className="text-xs text-muted-foreground">
+            Webhook endpoint for your email provider:{" "}
+            <code className="text-foreground">/api/public/mailgun-webhook</code> (delivered, bounced,
+            complaints, and inbound replies). Opens are never labelled verified.
+          </p>
         </CardContent>
       </Card>
+
 
       <Card>
         <CardHeader>
