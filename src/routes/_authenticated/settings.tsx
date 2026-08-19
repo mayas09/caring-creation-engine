@@ -71,6 +71,9 @@ const DEFAULTS: Form = {
 function SettingsPage() {
   const [form, setForm] = useState<Form>(DEFAULTS);
   const [saving, setSaving] = useState(false);
+  const fetchDomains = useServerFn(listEmailDomains);
+  const domains = useQuery({ queryKey: ["email-domains"], queryFn: () => fetchDomains({}) });
+
 
   const { data } = useQuery({
     queryKey: ["user_settings"],
