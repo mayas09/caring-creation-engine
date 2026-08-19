@@ -24,6 +24,7 @@ import { Route as AuthenticatedOutboxRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedPipelineRouteImport } from './routes/_authenticated/pipeline'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as ApiPublicMailgunWebhookRouteImport } from './routes/api/public/mailgun-webhook'
+import { Route as ApiPublicPxTokenRouteImport } from './routes/api/public/px.$token'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -99,6 +100,11 @@ const ApiPublicMailgunWebhookRoute = ApiPublicMailgunWebhookRouteImport.update({
   path: '/api/public/mailgun-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPxTokenRoute = ApiPublicPxTokenRouteImport.update({
+  id: '/api/public/px/$token',
+  path: '/api/public/px/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/pipeline': typeof AuthenticatedPipelineRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/public/mailgun-webhook': typeof ApiPublicMailgunWebhookRoute
+  '/api/public/px/$token': typeof ApiPublicPxTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/pipeline': typeof AuthenticatedPipelineRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/public/mailgun-webhook': typeof ApiPublicMailgunWebhookRoute
+  '/api/public/px/$token': typeof ApiPublicPxTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/_authenticated/pipeline': typeof AuthenticatedPipelineRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/api/public/mailgun-webhook': typeof ApiPublicMailgunWebhookRoute
+  '/api/public/px/$token': typeof ApiPublicPxTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/pipeline'
     | '/settings'
     | '/api/public/mailgun-webhook'
+    | '/api/public/px/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -183,6 +193,7 @@ export interface FileRouteTypes {
     | '/pipeline'
     | '/settings'
     | '/api/public/mailgun-webhook'
+    | '/api/public/px/$token'
   id:
     | '__root__'
     | '/'
@@ -200,6 +211,7 @@ export interface FileRouteTypes {
     | '/_authenticated/pipeline'
     | '/_authenticated/settings'
     | '/api/public/mailgun-webhook'
+    | '/api/public/px/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -207,6 +219,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiPublicMailgunWebhookRoute: typeof ApiPublicMailgunWebhookRoute
+  ApiPublicPxTokenRoute: typeof ApiPublicPxTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -316,6 +329,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMailgunWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/px/$token': {
+      id: '/api/public/px/$token'
+      path: '/api/public/px/$token'
+      fullPath: '/api/public/px/$token'
+      preLoaderRoute: typeof ApiPublicPxTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -355,6 +375,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiPublicMailgunWebhookRoute: ApiPublicMailgunWebhookRoute,
+  ApiPublicPxTokenRoute: ApiPublicPxTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
