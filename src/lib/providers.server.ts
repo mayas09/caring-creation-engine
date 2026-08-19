@@ -138,9 +138,15 @@ export function extractPageFacts(page: ScrapeResult): PageFacts {
   const emails = Array.from(
     new Set((page.markdown.match(/[\w.+-]+@[\w-]+\.[\w.]{2,}/g) ?? []).slice(0, 5)),
   ).filter((e) => !/\.(png|jpg|svg|webp)$/i.test(e));
-  const phones = Array.from(
-    new Set((page.markdown.match(/\+?\d[\d\s().-]{7,16}\d/g) ?? []).map((p) => p.trim()).slice(0, 5)),
-  );
+  // Only accept phone-shaped strings: an explicit tel: link, or a +country-code number.
+  const telLinks = page.links
+    .filter((l) => l.toLowerCase().startsWith("tel:"))
+    .map((l) => decodeURIComponent(l.slice(4)).trim());
+  const intl = (page.markdown.match(/\+\d[\d\s().-]{7,16}\d/g) ?? []).map((p) => p.trim());
+  const phones = Array.from(new Set([...telLinks, ...intl]))
+    .filter((p) => (p.match(/\d/g) ?? []).length >= 8 && (p.match(/\d/g) ?? []).length <= 15)
+    .slice(0, 5);
+
 
   const find = (host: string) => page.links.find((l) => l.toLowerCase().includes(host)) ?? null;
 
