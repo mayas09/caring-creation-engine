@@ -92,8 +92,9 @@ const CANDIDATE_SCHEMA = {
 } as const;
 
 /**
- * Suggests candidate businesses to research. No live source API is connected,
- * so every candidate is stored as UNVERIFIED with explicit checks required.
+ * Finds candidate businesses with a LIVE web search (Firecrawl), then structures the
+ * search results into candidates. Every candidate keeps the real source URL it came from;
+ * anything not present in a search result stays Unknown.
  */
 export async function runDiscovery(
   supabase: SupabaseClient,
@@ -107,27 +108,63 @@ export async function runDiscovery(
     notes?: string | undefined;
   },
 ) {
+  const { webSearch } = await import("./providers.server");
+
+  const queries = [
+    `${input.industry} in ${input.location}`,
+    `${input.industry} ${input.location} official website menu`,
+    ...(input.filters.includes("uses_third_party_ordering")
+      ? [`${input.industry} ${input.location} order online delivery`]
+      : []),
+    ...(input.filters.includes("social_only")
+      ? [`${input.industry} ${input.location} instagram`]
+      : []),
+  ];
+
+  const hitLists = await Promise.all(
+    queries.map((q) =>
+      webSearch(q, Math.min(10, input.limit * 2)).catch(() => [] as Awaited<ReturnType<typeof webSearch>>),
+    ),
+  );
+  const seen = new Set<string>();
+  const hits = hitLists.flat().filter((h) => {
+    const k = h.url.toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+
+  if (hits.length === 0) {
+    throw new Error("Live web search returned no results for that industry and location.");
+  }
+
   const result = await structuredCall<{ candidates: Candidate[]; method_note: string }>({
     system: SELLX_SYSTEM_PROMPT,
-    user: `Suggest up to ${input.limit} candidate businesses to RESEARCH (not to contact yet).
+    user: `Extract up to ${input.limit} candidate businesses to RESEARCH from these REAL web search results.
 
 Industry: ${input.industry}
 Location: ${input.location}
 Requested filters: ${input.filters.join(", ") || "none"}
-Sources the user says they will check manually: ${input.sources.join(", ") || "none"}
+Sources the user also plans to check: ${input.sources.join(", ") || "none"}
 User notes: ${input.notes || "none"}
 
+LIVE SEARCH RESULTS (the only source you may use):
+${hits.map((h, i) => `[${i + 1}] ${h.title}\n    url: ${h.url}\n    snippet: ${h.description}`).join("\n")}
+
 HARD RULES:
-- You have no live access to Google Maps, Yelp, Instagram or any API in this call.
-- Therefore NOTHING you output is Verified. known_facts must be phrased as recollection to be checked, never as confirmed fact.
+- Only include businesses that actually appear in the results above. Never add a name from memory.
+- website MUST be one of the URLs above (prefer the business's own site over a directory/aggregator page), or empty.
+- instagram MUST be an instagram.com URL from the results above, or empty.
+- known_facts: only facts visible in the titles/snippets above; each fact must end with " (source: <url>)".
 - Never invent phone numbers, emails, review counts, ratings, revenue or commission rates.
-- website/instagram may be empty strings when you are unsure. Empty is better than wrong.
-- what_to_check must list the concrete checks needed to turn this candidate into evidence.
-- disqualifier: empty string unless you have a real reason to think it is a chain/franchise/closed; then one short reason.
-- method_note: one honest sentence on how these names were produced and their limits.`,
+- Skip directory/listicle pages (Yelp lists, "best 10 ..." articles) as businesses.
+- what_to_check lists the concrete checks still needed (ordering flow, menu, contact).
+- disqualifier: empty unless the results clearly show a chain/franchise or a closed business.
+- method_note: one honest sentence naming live web search as the source and its limits.`,
     schemaName: "discovery_candidates",
     schema: CANDIDATE_SCHEMA as unknown as Record<string, unknown>,
   });
+
 
   const { data: search, error: searchErr } = await supabase
     .from("discovery_searches")
