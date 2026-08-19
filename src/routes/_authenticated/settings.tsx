@@ -296,6 +296,65 @@ function SettingsPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-base">Email sending</CardTitle>
+          <CardDescription>
+            Real outbound email runs through your connected email provider. Pick a verified sending
+            domain and the address replies should come from.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Field label="Sending domain">
+            {domains.data?.domains.length ? (
+              <select
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={form.integrations["mailgun_domain"] ?? ""}
+                onChange={(e) =>
+                  setForm({ ...form, integrations: { ...form.integrations, mailgun_domain: e.target.value } })
+                }
+              >
+                <option value="">Select a domain…</option>
+                {domains.data.domains.map((d) => (
+                  <option key={d.name} value={d.name}>
+                    {d.name} {d.state === "active" ? "✓" : `(${d.state})`}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Input
+                value={form.integrations["mailgun_domain"] ?? ""}
+                placeholder={domains.data?.error ?? "Loading domains…"}
+                onChange={(e) =>
+                  setForm({ ...form, integrations: { ...form.integrations, mailgun_domain: e.target.value } })
+                }
+              />
+            )}
+          </Field>
+          {(
+            [
+              ["from_email", "From address", "you@yourdomain.com"],
+              ["from_name", "From name", "Mayas Allali"],
+              ["reply_to", "Reply-to (optional)", "you@yourdomain.com"],
+            ] as const
+          ).map(([key, label, ph]) => (
+            <Field key={key} label={label}>
+              <Input
+                value={form.integrations[key] ?? ""}
+                placeholder={ph}
+                onChange={(e) =>
+                  setForm({ ...form, integrations: { ...form.integrations, [key]: e.target.value } })
+                }
+              />
+            </Field>
+          ))}
+          <p className="text-xs text-muted-foreground">
+            Sandbox domains only deliver to addresses you authorised with the provider. Verify your own
+            domain for real prospects.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base">Integrations</CardTitle>
           <CardDescription>
             Reference notes only — no data is pushed anywhere until you connect a provider.
@@ -306,7 +365,6 @@ function SettingsPage() {
             [
               ["crm", "CRM"],
               ["calendar", "Calendar / booking link"],
-              ["email_sender", "Sending mailbox"],
             ] as const
           ).map(([key, label]) => (
             <Field key={key} label={label}>
@@ -321,6 +379,7 @@ function SettingsPage() {
           ))}
         </CardContent>
       </Card>
+
 
       <Button onClick={() => void save()} disabled={saving}>
         {saving ? "Saving…" : "Save settings"}
