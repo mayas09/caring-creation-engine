@@ -36,6 +36,19 @@ function OutboxPage() {
   const qc = useQueryClient();
   const send = useServerFn(markMessageSent);
   const queueFn = useServerFn(queueMessage);
+  const sendNowFn = useServerFn(sendOutreachEmail);
+
+  const sendNow = useMutation({
+    mutationFn: (vars: { id: string; override: boolean }) =>
+      sendNowFn({ data: { messageId: vars.id, override: vars.override } }),
+    onSuccess: (r) => {
+      toast.success(`Email delivered to ${r.to}`);
+      void qc.invalidateQueries({ queryKey: ["outbox"] });
+      void qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const recheckFn = useServerFn(runFinalVerification);
 
   const queue = useMutation({
