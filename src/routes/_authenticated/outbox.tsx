@@ -117,7 +117,7 @@ function OutboxPage() {
       <div className="grid gap-3 xl:grid-cols-2">
         {messages.map((m) => {
           const v = m.verification as Verification;
-          const lead = m.leads as { business_name?: string; city?: string | null } | null;
+          const lead = m.leads as { business_name?: string; city?: string | null; email?: string | null } | null;
           return (
             <Card key={m.id}>
               <CardHeader>
