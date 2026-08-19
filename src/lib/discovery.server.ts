@@ -192,6 +192,8 @@ HARD RULES:
 
   const created: Array<{ id: string; business_name: string; disqualifier: string }> = [];
 
+  const DIRECTORY = /tripadvisor|yelp|yellowpages|foursquare|zomato|wikipedia|reddit|facebook\.com|instagram\.com|google\.[a-z]|ubereats|deliveroo|glovo|justeat|doordash|thefork|opentable/i;
+
   for (const c of result.candidates) {
     const name = c.business_name.trim();
     if (!name) continue;
@@ -204,6 +206,14 @@ HARD RULES:
         ? "On do-not-contact list"
         : c.disqualifier.trim();
 
+    // A directory/aggregator page is not the business's own website — keep the field Unknown.
+    const ownSite = c.website && !DIRECTORY.test(c.website) ? c.website : null;
+    const directoryUrl = c.website && !ownSite ? c.website : null;
+    const checks = [
+      ...c.what_to_check,
+      ...(directoryUrl ? [`Find the official website — only a directory listing was found: ${directoryUrl}`] : []),
+    ];
+
     const { data: lead, error } = await supabase
       .from("leads")
       .insert({
@@ -212,8 +222,9 @@ HARD RULES:
         industry: c.industry || input.industry,
         city: c.city || input.location,
         country: c.country || null,
-        website: c.website || null,
+        website: ownSite,
         instagram: c.instagram || null,
+
         source: "live_web_search",
         discovery_search_id: search.id,
         stage: "new",
