@@ -22,12 +22,12 @@ import {
 export const Route = createFileRoute("/_authenticated/campaigns")({
   head: () => ({
     meta: [
-      { title: "Campaigns — LeadGen AI Pro" },
+      { title: "Campaigns — sell.x" },
       {
         name: "description",
         content: "Plan outreach campaigns with daily send caps, evidence requirements and honest copy.",
       },
-      { property: "og:title", content: "Campaigns — LeadGen AI Pro" },
+      { property: "og:title", content: "Campaigns — sell.x" },
       { property: "og:description", content: "Outreach campaigns built on verified evidence." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

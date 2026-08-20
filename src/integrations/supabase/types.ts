@@ -784,6 +784,7 @@ export type Database = {
           cta_style: string
           daily_email_limit: number
           data_retention_days: number
+          default_industry: string
           email_style: string
           gdpr_tracking: boolean
           ghost_threshold_days: number
@@ -804,6 +805,7 @@ export type Database = {
           cta_style?: string
           daily_email_limit?: number
           data_retention_days?: number
+          default_industry?: string
           email_style?: string
           gdpr_tracking?: boolean
           ghost_threshold_days?: number
@@ -824,6 +826,7 @@ export type Database = {
           cta_style?: string
           daily_email_limit?: number
           data_retention_days?: number
+          default_industry?: string
           email_style?: string
           gdpr_tracking?: boolean
           ghost_threshold_days?: number

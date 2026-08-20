@@ -12,13 +12,13 @@ import { formatChecked } from "@/lib/evidence";
 export const Route = createFileRoute("/_authenticated/outbox")({
   head: () => ({
     meta: [
-      { title: "Outbox — LeadGen AI Pro" },
+      { title: "Outbox — sell.x" },
       {
         name: "description",
         content:
           "Review every outreach draft, its verification result and the evidence codes behind each claim before sending.",
       },
-      { property: "og:title", content: "Outbox — LeadGen AI Pro" },
+      { property: "og:title", content: "Outbox — sell.x" },
       {
         property: "og:description",
         content: "Verified outreach drafts with evidence codes and honesty checks.",

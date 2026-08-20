@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -16,13 +16,13 @@ import { discoverLeads } from "@/lib/discovery.functions";
 export const Route = createFileRoute("/_authenticated/discovery")({
   head: () => ({
     meta: [
-      { title: "Lead Discovery — LeadGen AI Pro" },
+      { title: "Lead Discovery — sell.x" },
       {
         name: "description",
         content:
           "Run evidence-first lead discovery by industry, location and filters. Every candidate starts unverified.",
       },
-      { property: "og:title", content: "Lead Discovery — LeadGen AI Pro" },
+      { property: "og:title", content: "Lead Discovery — sell.x" },
       { property: "og:description", content: "Industry and location search that returns candidates, not claims." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -60,6 +60,7 @@ function DiscoveryPage() {
   const qc = useQueryClient();
   const discover = useServerFn(discoverLeads);
   const [industry, setIndustry] = useState("Coffee shops");
+  const [industryTouched, setIndustryTouched] = useState(false);
   const [location, setLocation] = useState("");
   const [filters, setFilters] = useState<string[]>(["uses_third_party_ordering", "independent_not_chain"]);
   const [sources, setSources] = useState<string[]>(["Google Maps", "Instagram"]);
@@ -67,6 +68,21 @@ function DiscoveryPage() {
   const [limit, setLimit] = useState(5);
   const [running, setRunning] = useState(false);
   const [methodNote, setMethodNote] = useState<string | null>(null);
+
+  const { data: settings } = useQuery({
+    queryKey: ["user_settings", "default_industry"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("user_settings").select("default_industry").maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    if (settings?.default_industry && !industryTouched) {
+      setIndustry(settings.default_industry);
+    }
+  }, [settings, industryTouched]);
 
   const { data: searches } = useQuery({
     queryKey: ["discovery_searches"],
@@ -150,7 +166,13 @@ function DiscoveryPage() {
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label>Industry</Label>
-              <Input value={industry} onChange={(e) => setIndustry(e.target.value)} />
+              <Input
+                value={industry}
+                onChange={(e) => {
+                  setIndustry(e.target.value);
+                  setIndustryTouched(true);
+                }}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Location</Label>

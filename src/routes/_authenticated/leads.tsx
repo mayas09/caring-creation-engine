@@ -25,13 +25,13 @@ import { CLASSIFICATION_LABEL, STAGE_LABEL } from "@/lib/evidence";
 export const Route = createFileRoute("/_authenticated/leads")({
   head: () => ({
     meta: [
-      { title: "Leads — LeadGen AI Pro" },
+      { title: "Leads — sell.x" },
       {
         name: "description",
         content:
           "Browse leads with evidence cards: verified signals, ordering gaps and friction points, each with a source.",
       },
-      { property: "og:title", content: "Leads — LeadGen AI Pro" },
+      { property: "og:title", content: "Leads — sell.x" },
       { property: "og:description", content: "Evidence cards for every lead, with sources and freshness." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

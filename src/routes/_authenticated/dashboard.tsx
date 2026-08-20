@@ -13,13 +13,13 @@ import { CLASSIFICATION_LABEL, STAGE_LABEL, formatChecked } from "@/lib/evidence
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Dashboard — LeadGen AI Pro" },
+      { title: "Dashboard — sell.x" },
       {
         name: "description",
         content:
           "Pipeline health, evidence coverage and today's verified opportunities in one evidence-first dashboard.",
       },
-      { property: "og:title", content: "Dashboard — LeadGen AI Pro" },
+      { property: "og:title", content: "Dashboard — sell.x" },
       { property: "og:description", content: "Pipeline health and evidence coverage at a glance." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

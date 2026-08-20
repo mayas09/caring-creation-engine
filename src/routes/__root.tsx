@@ -79,14 +79,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "LeadGen AI Pro — Evidence-first lead generation" },
+      { title: "sell.x — Evidence-first lead generation" },
       {
         name: "description",
         content:
           "Research, qualify and reach local businesses with evidence-labeled claims — never invented numbers.",
       },
-      { name: "author", content: "LeadGen AI Pro" },
-      { property: "og:title", content: "LeadGen AI Pro — Evidence-first lead generation" },
+      { name: "author", content: "sell.x" },
+      { property: "og:title", content: "sell.x — Evidence-first lead generation" },
       {
         property: "og:description",
         content: "Every claim labeled Verified, Calculated, Inferred or Unknown, with a source.",

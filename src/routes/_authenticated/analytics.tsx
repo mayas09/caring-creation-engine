@@ -18,12 +18,12 @@ function download(blob: Blob, filename: string) {
 export const Route = createFileRoute("/_authenticated/analytics")({
   head: () => ({
     meta: [
-      { title: "Analytics — LeadGen AI Pro" },
+      { title: "Analytics — sell.x" },
       {
         name: "description",
         content: "Conversion, evidence coverage and stage distribution — all calculated from stored data.",
       },
-      { property: "og:title", content: "Analytics — LeadGen AI Pro" },
+      { property: "og:title", content: "Analytics — sell.x" },
       { property: "og:description", content: "Calculated metrics with visible formulas, never invented." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
