@@ -15,12 +15,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — LeadGen AI Pro" },
+      { title: "Settings — sell.x" },
       {
         name: "description",
         content: "Configure the assistant persona, outreach style, sending limits and compliance defaults.",
       },
-      { property: "og:title", content: "Settings — LeadGen AI Pro" },
+      { property: "og:title", content: "Settings — sell.x" },
       { property: "og:description", content: "Assistant persona, outreach style and compliance defaults." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -31,6 +31,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
 
 type Form = {
   assistant_name: string;
+  default_industry: string;
   aggressiveness: string;
   email_style: string;
   cta_style: string;
@@ -49,12 +50,13 @@ type Form = {
 
 const DEFAULTS: Form = {
   assistant_name: "sell.x",
+  default_industry: "Coffee shops",
   aggressiveness: "balanced",
   email_style: "short",
   cta_style: "soft",
   daily_email_limit: 50,
   ghost_threshold_days: 14,
-  can_spam_signature: "",
+  can_spam_signature: "Mayas\nAsheville, NC\nReply STOP to unsubscribe",
   gdpr_tracking: false,
   call_recording_default: false,
   data_retention_days: 365,
@@ -90,6 +92,7 @@ function SettingsPage() {
     if (data) {
       setForm({
         assistant_name: data.assistant_name,
+        default_industry: data.default_industry ?? DEFAULTS.default_industry,
         aggressiveness: data.aggressiveness,
         email_style: data.email_style,
         cta_style: data.cta_style,
@@ -154,6 +157,16 @@ function SettingsPage() {
               onChange={(e) => setForm({ ...form, assistant_name: e.target.value })}
             />
           </Field>
+          <Field label="Default industry">
+            <Input
+              value={form.default_industry}
+              onChange={(e) => setForm({ ...form, default_industry: e.target.value })}
+              placeholder="Coffee shops, restaurants, dental clinics, salons, gyms…"
+            />
+          </Field>
+          <p className="-mt-2 text-xs text-muted-foreground">
+            Pre-fills the industry field on Discovery. Change any time to switch focus.
+          </p>
           <Field label="Aggressiveness">
             <Select
               value={form.aggressiveness}
@@ -336,9 +349,9 @@ function SettingsPage() {
           </Field>
           {(
             [
-              ["from_email", "From address", "you@yourdomain.com"],
+              ["from_email", "From address", "mayasallali09@gmail.com"],
               ["from_name", "From name", "Mayas Allali"],
-              ["reply_to", "Reply-to (optional)", "you@yourdomain.com"],
+              ["reply_to", "Reply-to (optional)", "mayasallali09@gmail.com"],
             ] as const
           ).map(([key, label, ph]) => (
             <Field key={key} label={label}>

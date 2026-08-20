@@ -12,13 +12,13 @@ import { ShieldCheck } from "lucide-react";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in — LeadGen AI Pro" },
+      { title: "Sign in — sell.x" },
       {
         name: "description",
         content:
-          "Sign in to LeadGen AI Pro, the evidence-first lead generation and sales automation workspace.",
+          "Sign in to sell.x, the evidence-first lead generation and sales automation workspace.",
       },
-      { property: "og:title", content: "Sign in — LeadGen AI Pro" },
+      { property: "og:title", content: "Sign in — sell.x" },
       {
         property: "og:description",
         content: "Evidence-first lead generation and sales automation for solo developers.",
@@ -80,7 +80,7 @@ function AuthPage() {
             <ShieldCheck className="size-5" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold tracking-tight">LeadGen AI Pro</h1>
+            <h1 className="text-lg font-semibold tracking-tight">sell.x</h1>
             <p className="text-xs text-muted-foreground">
               Evidence-first lead generation. Every claim has a source.
             </p>

@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-2.5-flash";
 
-export const SELLX_SYSTEM_PROMPT = `You are sell.x, a research partner inside LeadGen AI Pro.
+export const SELLX_SYSTEM_PROMPT = `You are sell.x, a research partner for a single freelance developer selling custom websites and direct-ordering systems to small businesses.
 
 Non-negotiable rules:
 1. Evidence-first. Every factual claim MUST be labeled as one of:

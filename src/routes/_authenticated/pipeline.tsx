@@ -11,12 +11,12 @@ type Stage = Database["public"]["Enums"]["lead_stage"];
 export const Route = createFileRoute("/_authenticated/pipeline")({
   head: () => ({
     meta: [
-      { title: "Pipeline — LeadGen AI Pro" },
+      { title: "Pipeline — sell.x" },
       {
         name: "description",
         content: "Kanban pipeline from New to Closed-Won, with evidence-backed stage moves.",
       },
-      { property: "og:title", content: "Pipeline — LeadGen AI Pro" },
+      { property: "og:title", content: "Pipeline — sell.x" },
       { property: "og:description", content: "Track every lead from research to closed-won." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

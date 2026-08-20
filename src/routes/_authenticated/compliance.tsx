@@ -17,13 +17,13 @@ import { formatChecked } from "@/lib/evidence";
 export const Route = createFileRoute("/_authenticated/compliance")({
   head: () => ({
     meta: [
-      { title: "Compliance — LeadGen AI Pro" },
+      { title: "Compliance — sell.x" },
       {
         name: "description",
         content:
           "Do-not-contact list, data retention purges and evidence freshness rechecks for honest, compliant outreach.",
       },
-      { property: "og:title", content: "Compliance — LeadGen AI Pro" },
+      { property: "og:title", content: "Compliance — sell.x" },
       {
         property: "og:description",
         content: "Manage DNC entries, retention purges and stale evidence rechecks.",

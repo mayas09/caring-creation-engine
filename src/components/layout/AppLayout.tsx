@@ -143,7 +143,7 @@ function Brand({ onClose }: { onClose?: () => void }) {
       <div className="flex size-8 items-center justify-center rounded-md bg-primary/15 text-primary">
         <ShieldCheck className="size-4" />
       </div>
-      <span className="text-sm font-semibold tracking-tight">LeadGen AI Pro</span>
+      <span className="text-sm font-semibold tracking-tight">sell.x</span>
       {onClose && (
         <Button variant="ghost" size="icon" className="ml-auto" onClick={onClose}>
           <X className="size-4" />

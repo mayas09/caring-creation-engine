@@ -15,13 +15,13 @@ import { logCall } from "@/lib/voice.functions";
 export const Route = createFileRoute("/_authenticated/calls")({
   head: () => ({
     meta: [
-      { title: "Calls — LeadGen AI Pro" },
+      { title: "Calls — sell.x" },
       {
         name: "description",
         content:
           "Evidence-labeled call scripts, transcripts and summaries that separate verified facts from what the lead said.",
       },
-      { property: "og:title", content: "Calls — LeadGen AI Pro" },
+      { property: "og:title", content: "Calls — sell.x" },
       { property: "og:description", content: "Call scripts and summaries with explicit evidence labels." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

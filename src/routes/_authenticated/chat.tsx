@@ -4,13 +4,13 @@ import { AiChatPanel } from "@/components/ai/AiChatPanel";
 export const Route = createFileRoute("/_authenticated/chat")({
   head: () => ({
     meta: [
-      { title: "AI Chat — LeadGen AI Pro" },
+      { title: "AI Chat — sell.x" },
       {
         name: "description",
         content:
           "Chat with sell.x, the research partner that labels every claim as Verified, Calculated, Inferred or Unknown.",
       },
-      { property: "og:title", content: "AI Chat — LeadGen AI Pro" },
+      { property: "og:title", content: "AI Chat — sell.x" },
       { property: "og:description", content: "An AI research partner that never invents numbers." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

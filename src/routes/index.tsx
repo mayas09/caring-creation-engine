@@ -6,13 +6,13 @@ import { Card, CardContent } from "@/components/ui/card";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "LeadGen AI Pro — Evidence-first lead generation" },
+      { title: "sell.x — Evidence-first lead generation" },
       {
         name: "description",
         content:
           "Find local businesses with real ordering gaps, label every claim with a source, and send outreach you can defend.",
       },
-      { property: "og:title", content: "LeadGen AI Pro — Evidence-first lead generation" },
+      { property: "og:title", content: "sell.x — Evidence-first lead generation" },
       {
         property: "og:description",
         content: "Verified, Calculated, Inferred or Unknown — every claim carries its evidence ID.",
@@ -50,7 +50,7 @@ function Landing() {
           <div className="flex size-8 items-center justify-center rounded-md bg-primary/15 text-primary">
             <ShieldCheck className="size-4" />
           </div>
-          <span className="text-sm font-semibold tracking-tight">LeadGen AI Pro</span>
+          <span className="text-sm font-semibold tracking-tight">sell.x</span>
         </div>
         <Button asChild size="sm" variant="outline">
           <Link to="/auth">Sign in</Link>
