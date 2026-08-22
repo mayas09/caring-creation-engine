@@ -31,15 +31,11 @@ function aiErrorMessage(status: number) {
   return "The AI request could not be completed.";
 }
 
-export async function requestNetlifyAi<T>(endpoint: AiEndpoint, body: Record<string, unknown>) {
-  const gw = getGatewayConfig();
-  if (!gw) throw new Error("AI is not configured on this deployment.");
-  const { apiKey, baseUrl } = gw;
-
+async function callGateway(endpoint: AiEndpoint, baseUrl: string, apiKey: string, body: Record<string, unknown>) {
+  const url = `${baseUrl.replace(/\/+$/, "")}/${endpoint}`;
   let response: Response;
-
   try {
-    response = await fetch(`${baseUrl}/${endpoint}`, {
+    response = await fetch(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -47,17 +43,85 @@ export async function requestNetlifyAi<T>(endpoint: AiEndpoint, body: Record<str
       },
       body: JSON.stringify(body),
     });
-  } catch {
-    throw new Error("The AI service could not be reached. Try again shortly.");
+  } catch (e) {
+    throw new Error("The AI gateway could not be reached.");
   }
 
-  if (!response.ok) throw new Error(aiErrorMessage(response.status));
+  const contentType = response.headers.get("content-type") ?? "";
+  const text = await response.text();
+
+  if (!contentType.includes("application/json")) {
+    const snippet = text.slice(0, 1000).replace(/\s+/g, " ");
+    throw new Error(`AI gateway returned non-JSON response (status ${response.status}): ${snippet}`);
+  }
+
+  if (!response.ok) {
+    // try to surface provider error
+    try {
+      const json = JSON.parse(text);
+      const msg = (json && (json.error || json.message)) || aiErrorMessage(response.status);
+      throw new Error(String(msg));
+    } catch {
+      throw new Error(aiErrorMessage(response.status));
+    }
+  }
 
   try {
-    return (await response.json()) as T;
+    return JSON.parse(text) as unknown;
   } catch {
-    throw new Error("The AI service returned an invalid response.");
+    throw new Error("The AI service returned an invalid JSON response.");
   }
+}
+
+export async function requestNetlifyAi<T>(endpoint: AiEndpoint, body: Record<string, unknown>) {
+  const gw = getGatewayConfig();
+  let lastError: Error | null = null;
+
+  // 1) Try gateway (Lovable / Netlify) if configured
+  if (gw) {
+    try {
+      return (await callGateway(endpoint, gw.baseUrl, gw.apiKey, body)) as T;
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+      // fall through to OpenAI fallback if available
+    }
+  }
+
+  // 2) Fallback to OpenAI if available
+  const openaiKey = process.env["OPENAI_API_KEY"];
+  if (openaiKey) {
+    const openaiUrl = endpoint === "responses" ? "https://api.openai.com/v1/responses" : "https://api.openai.com/v1/chat/completions";
+    const openaiBody = { ...body } as Record<string, unknown>;
+    if (!("model" in openaiBody)) {
+      openaiBody.model = endpoint === "responses" ? OPENAI_STRUCTURED_MODEL : OPENAI_CHAT_MODEL;
+    }
+
+    try {
+      const res = await fetch(openaiUrl, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify(openaiBody),
+      });
+      const ct = res.headers.get("content-type") ?? "";
+      const txt = await res.text();
+      if (!ct.includes("application/json")) throw new Error(`OpenAI returned non-JSON response (status ${res.status})`);
+      if (!res.ok) {
+        try {
+          const json = JSON.parse(txt);
+          throw new Error(JSON.stringify(json));
+        } catch {
+          throw new Error(`OpenAI error: ${res.status}`);
+        }
+      }
+      return JSON.parse(txt) as T;
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+    }
+  }
+
+  // 3) No working provider
+  if (lastError) throw lastError;
+  throw new Error("AI is not configured on this deployment.");
 }
 
 export function chatModel() {
@@ -81,7 +145,7 @@ export function safeAiReply(error: unknown) {
     "The AI service returned an empty response.",
     "sell.x reached the action limit for one request. Try a smaller request.",
   ]);
-  const message = error instanceof Error ? error.message : "";
-  const detail = knownMessages.has(message) ? message : "The AI request could not be completed.";
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  const detail = knownMessages.has(message) ? message : message || "The AI request could not be completed.";
   return `# ⚠️ AI UNAVAILABLE\n\n## What Happened\n- ${detail}\n- Your message was not processed and no action was taken.\n\nACTIONS: [🔄 Try again]`;
 }
