@@ -3,13 +3,22 @@ const OPENAI_STRUCTURED_MODEL = "gpt-5.4";
 
 type AiEndpoint = "chat/completions" | "responses";
 
-function getGatewayConfig() {
-  const apiKey = process.env["NETLIFY_AI_GATEWAY_KEY"];
-  const baseUrl = process.env["NETLIFY_AI_GATEWAY_BASE_URL"]?.replace(/\/+$/, "");
+type GatewayConfig = { apiKey: string; baseUrl: string } | null;
 
-  if (!apiKey || !baseUrl) {
-    throw new Error("AI is not configured on this deployment.");
-  }
+function getGatewayConfig(): GatewayConfig {
+  // Prefer explicit Netlify AI gateway settings
+  const netlifyKey = process.env["NETLIFY_AI_GATEWAY_KEY"];
+  const netlifyBase = process.env["NETLIFY_AI_GATEWAY_BASE_URL"];
+
+  // Fallbacks for environments where Netlify is not available
+  const lovableKey = process.env["LOVABLE_API_KEY"] || process.env["LOVABLE_GATEWAY_KEY"];
+  const connectorKey = process.env["CONNECTOR_GATEWAY_KEY"];
+
+  const baseUrl = (netlifyBase || process.env["LOVABLE_GATEWAY_BASE_URL"] || process.env["CONNECTOR_GATEWAY_BASE_URL"] || "https://connector-gateway.lovable.dev").replace(/\/+$/, "");
+
+  const apiKey = netlifyKey || lovableKey || connectorKey || process.env["NETLIFY_AI_GATEWAY_KEY_FALLBACK"];
+
+  if (!apiKey || !baseUrl) return null;
 
   return { apiKey, baseUrl };
 }
@@ -23,7 +32,10 @@ function aiErrorMessage(status: number) {
 }
 
 export async function requestNetlifyAi<T>(endpoint: AiEndpoint, body: Record<string, unknown>) {
-  const { apiKey, baseUrl } = getGatewayConfig();
+  const gw = getGatewayConfig();
+  if (!gw) throw new Error("AI is not configured on this deployment.");
+  const { apiKey, baseUrl } = gw;
+
   let response: Response;
 
   try {
