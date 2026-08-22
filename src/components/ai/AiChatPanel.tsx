@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { sellxChat } from "@/lib/ai.functions";
 import { cn } from "@/lib/utils";
+import { StructuredAssistantMessage } from "./StructuredAssistantMessage";
 
 type Msg = { role: "user" | "assistant"; content: string };
 export type ChatStatus = "online" | "working" | "review";
@@ -39,7 +40,7 @@ export function AiChatPanel({
     {
       role: "assistant",
       content:
-        "I'm sell.x — your autonomous sales assistant. I can manage leads, draft and queue outreach, run discovery and verification, export leads, schedule follow-ups, and pause automation. I never send email without your approval, and I always ask before changing settings.",
+        "# ✦ SELL.X READY\n\n## What I Can Do\n- 🔎 Research and verify leads\n- ✉️ Draft and queue outreach\n- 📊 Export leads and schedule follow-ups\n- ⚙️ Manage automation with your confirmation\n\n## Safety\n- 🛡️ Email always requires your approval before sending\n- ✅ Settings only change after explicit confirmation\n\nACTIONS: [🔎 Find leads] [✉️ Draft outreach]",
     },
   ]);
   const [input, setInput] = useState("");
@@ -103,18 +104,24 @@ export function AiChatPanel({
 
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
-          {messages.map((m, i) => (
-            <div
-              key={i}
-              className={
-                m.role === "user"
-                  ? "ml-auto max-w-[85%] rounded-lg bg-primary/15 px-3 py-2 text-sm"
-                  : "max-w-[95%] whitespace-pre-wrap rounded-lg bg-muted px-3 py-2 text-sm leading-relaxed"
-              }
-            >
-              {m.content}
-            </div>
-          ))}
+          {messages.map((m, i) =>
+            m.role === "user" ? (
+              <div
+                key={i}
+                className="ml-auto max-w-[85%] rounded-lg bg-primary/15 px-3 py-2 text-sm leading-relaxed"
+              >
+                {m.content}
+              </div>
+            ) : (
+              <div key={i} className="max-w-[96%]">
+                <StructuredAssistantMessage
+                  content={m.content}
+                  disabled={busy}
+                  onAction={(action) => void send(action)}
+                />
+              </div>
+            ),
+          )}
           {busy && (
             <p className="text-xs text-muted-foreground">
               sell.x is checking evidence and running the requested actions…
