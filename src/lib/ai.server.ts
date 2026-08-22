@@ -1,4 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+import { executeSellXTool, SELLX_TOOLS } from "./sellx-tools.server";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-2.5-flash";
@@ -17,10 +19,24 @@ Non-negotiable rules:
 4. Ranges over point estimates when calculating; show assumptions explicitly.
 5. Outreach copy must be respectful, specific, short, and free of hype or fake urgency.
 6. If asked to fabricate proof, refuse and offer a verification plan instead.
+7. When the user asks for an available action, call the matching tool and report the actual result. Never claim an action happened without a successful tool result.
+8. Email safety is absolute: you may draft, edit, delete, verify, schedule, and queue email, but never send it. Queued email still requires user approval.
+9. Settings changes require two steps: request confirmation first, then apply only after the user explicitly confirms.
 
 Answer format: short paragraphs or bullets, each fact carrying its label and source.`;
 
 type ChatMessage = { role: "user" | "assistant" | "system"; content: string };
+
+type ToolCall = {
+  id: string;
+  type: "function";
+  function: { name: string; arguments: string };
+};
+
+type AgentMessage =
+  | ChatMessage
+  | { role: "assistant"; content: string | null; tool_calls: ToolCall[] }
+  | { role: "tool"; content: string; tool_call_id: string };
 
 export async function callSellX(messages: ChatMessage[], leadContext?: string) {
   const apiKey = process.env["LOVABLE_API_KEY"];
@@ -58,10 +74,91 @@ export async function callSellX(messages: ChatMessage[], leadContext?: string) {
   return { content: json.choices?.[0]?.message?.content ?? "" };
 }
 
+export async function callSellXAgent(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  messages: ChatMessage[],
+  leadContext?: string,
+) {
+  const apiKey = process.env["LOVABLE_API_KEY"];
+  if (!apiKey) throw new Error("AI is not configured.");
+
+  const conversation: AgentMessage[] = [
+    { role: "system", content: SELLX_SYSTEM_PROMPT },
+    ...(leadContext
+      ? [
+          {
+            role: "system" as const,
+            content: `Known lead context (only source of facts you may treat as Verified):\n${leadContext}`,
+          },
+        ]
+      : []),
+    ...messages.slice(-20),
+  ];
+  let clearedMemory = false;
+
+  for (let round = 0; round < 8; round += 1) {
+    const res = await fetch(GATEWAY, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: conversation,
+        tools: SELLX_TOOLS,
+        tool_choice: "auto",
+      }),
+    });
+
+    if (res.status === 429) throw new Error("Rate limit reached. Try again shortly.");
+    if (res.status === 402) throw new Error("AI credits exhausted. Add credits in settings.");
+    if (!res.ok) throw new Error(`AI request failed (${res.status}).`);
+
+    const json = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string | null; tool_calls?: ToolCall[] } }>;
+    };
+    const message = json.choices?.[0]?.message;
+    if (!message) throw new Error("AI returned an empty response.");
+    if (!message.tool_calls?.length) {
+      return { content: message.content ?? "Action completed.", clearedMemory };
+    }
+
+    conversation.push({
+      role: "assistant",
+      content: message.content ?? null,
+      tool_calls: message.tool_calls,
+    });
+    for (const toolCall of message.tool_calls) {
+      let toolArguments: unknown = {};
+      try {
+        toolArguments = JSON.parse(toolCall.function.arguments || "{}");
+      } catch {
+        toolArguments = {};
+      }
+      const result = await executeSellXTool(
+        { supabase, userId },
+        toolCall.function.name,
+        toolArguments,
+      );
+      if (toolCall.function.name === "clear_chat_memory" && result.ok) clearedMemory = true;
+      conversation.push({
+        role: "tool",
+        tool_call_id: toolCall.id,
+        content: JSON.stringify(result),
+      });
+    }
+  }
+
+  throw new Error("sell.x reached the action limit for one request. Try a smaller request.");
+}
+
 export async function draftEmailForLead(
   supabase: SupabaseClient,
   userId: string,
-  opts: { leadId: string; style: "short" | "medium" | "detailed"; ctaStyle: "soft" | "binary" | "direct" },
+  opts: {
+    leadId: string;
+    style: "short" | "medium" | "detailed";
+    ctaStyle: "soft" | "binary" | "direct";
+  },
 ) {
   const { data: lead, error } = await supabase
     .from("leads")

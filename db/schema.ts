@@ -1,4 +1,14 @@
-import { index, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 export const conversationMemoryCategory = pgEnum("conversation_memory_category", [
   "preference",
@@ -30,3 +40,44 @@ export const conversationMemory = pgTable(
 
 export type ConversationMemory = typeof conversationMemory.$inferSelect;
 export type NewConversationMemory = typeof conversationMemory.$inferInsert;
+
+export const assistantActionLog = pgTable(
+  "assistant_action_log",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
+    action: text().notNull(),
+    target: text(),
+    status: text().notNull(),
+    detail: jsonb().$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("assistant_action_log_user_created_idx").on(table.userId, table.createdAt)],
+);
+
+export const assistantConfirmation = pgTable(
+  "assistant_confirmation",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
+    action: text().notNull(),
+    payload: jsonb().$type<Record<string, unknown>>().notNull(),
+    status: text().notNull().default("pending"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (table) => [index("assistant_confirmation_user_status_idx").on(table.userId, table.status)],
+);
+
+export const assistantAutomationState = pgTable(
+  "assistant_automation_state",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
+    paused: boolean().notNull().default(false),
+    reason: text(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("assistant_automation_state_user_idx").on(table.userId)],
+);
