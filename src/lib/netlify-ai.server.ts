@@ -56,7 +56,6 @@ async function callGateway(endpoint: AiEndpoint, baseUrl: string, apiKey: string
   }
 
   if (!response.ok) {
-    // try to surface provider error
     try {
       const json = JSON.parse(text);
       const msg = (json && (json.error || json.message)) || aiErrorMessage(response.status);
@@ -74,20 +73,50 @@ async function callGateway(endpoint: AiEndpoint, baseUrl: string, apiKey: string
 }
 
 export async function requestNetlifyAi<T>(endpoint: AiEndpoint, body: Record<string, unknown>) {
-  const gw = getGatewayConfig();
   let lastError: Error | null = null;
 
   // 1) Try gateway (Lovable / Netlify) if configured
+  const gw = getGatewayConfig();
   if (gw) {
     try {
       return (await callGateway(endpoint, gw.baseUrl, gw.apiKey, body)) as T;
     } catch (e) {
       lastError = e instanceof Error ? e : new Error(String(e));
-      // fall through to OpenAI fallback if available
+      // fall through to other fallbacks
     }
   }
 
-  // 2) Fallback to OpenAI if available
+  // 2) Try Gemini (Google) if configured
+  const geminiKey = process.env["GEMINI_API_KEY"];
+  const geminiUrl = (process.env["GEMINI_GATEWAY_BASE_URL"] || process.env["GEMINI_GATEWAY_URL"] || "").trim();
+  const geminiDefaultModel = process.env["GEMINI_MODEL"] || "text-bison-001";
+  const geminiDefaultUrl = `https://generativelanguage.googleapis.com/v1/models/${geminiDefaultModel}:generate`;
+  if (geminiKey) {
+    const urlToCall = geminiUrl || geminiDefaultUrl;
+    try {
+      const res = await fetch(urlToCall, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${geminiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const ct = res.headers.get("content-type") ?? "";
+      const txt = await res.text();
+      if (!ct.includes("application/json")) throw new Error(`Gemini returned non-JSON response (status ${res.status})`);
+      if (!res.ok) {
+        try {
+          const json = JSON.parse(txt);
+          throw new Error(JSON.stringify(json));
+        } catch {
+          throw new Error(`Gemini error: ${res.status}`);
+        }
+      }
+      return JSON.parse(txt) as T;
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+    }
+  }
+
+  // 3) Fallback to OpenAI if available
   const openaiKey = process.env["OPENAI_API_KEY"];
   if (openaiKey) {
     const openaiUrl = endpoint === "responses" ? "https://api.openai.com/v1/responses" : "https://api.openai.com/v1/chat/completions";
@@ -119,7 +148,7 @@ export async function requestNetlifyAi<T>(endpoint: AiEndpoint, body: Record<str
     }
   }
 
-  // 3) No working provider
+  // 4) No working provider
   if (lastError) throw lastError;
   throw new Error("AI is not configured on this deployment.");
 }
