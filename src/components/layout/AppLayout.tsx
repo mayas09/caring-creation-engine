@@ -20,7 +20,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { AiChatPanel } from "@/components/ai/AiChatPanel";
+import { AiChatPanel, type ChatStatus } from "@/components/ai/AiChatPanel";
+
+const STATUS_DOT: Record<ChatStatus, string> = {
+  online: "bg-emerald-500",
+  working: "bg-amber-500",
+  review: "bg-red-500",
+};
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -39,7 +45,16 @@ const NAV = [
 export function AppLayout({ children }: { children: ReactNode }) {
   const [mobileNav, setMobileNav] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatStatus, setChatStatus] = useState<ChatStatus>("online");
   const navigate = useNavigate();
+
+  function toggleChat() {
+    setChatOpen((v) => {
+      const next = !v;
+      if (next && chatStatus !== "working") setChatStatus("online");
+      return next;
+    });
+  }
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   async function signOut() {
@@ -101,7 +116,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center justify-between gap-3 border-b border-border px-4 lg:px-6">
+        <header className="flex h-14 items-center gap-3 border-b border-border px-4 lg:px-6">
           <Button
             variant="ghost"
             size="icon"
@@ -114,24 +129,45 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <p className="hidden text-xs text-muted-foreground sm:block">
             Research partner mode — signals, not truths. Every claim carries a source.
           </p>
-          <Button size="sm" variant="outline" onClick={() => setChatOpen((v) => !v)}>
-            <Sparkles className="size-4" /> sell.x
-          </Button>
         </header>
         <main className="min-w-0 flex-1 p-4 lg:p-6">{children}</main>
       </div>
 
-      {/* AI chat panel */}
-      {chatOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-40 bg-black/60 xl:hidden"
-            onClick={() => setChatOpen(false)}
+      {/* AI chat panel — stays mounted while collapsed so in-flight research keeps running */}
+      <div
+        className={cn("fixed inset-0 z-40 bg-black/60 xl:hidden", chatOpen ? "block" : "hidden")}
+        onClick={() => setChatOpen(false)}
+      />
+      <aside
+        className={cn(
+          "fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-border bg-card transition-transform duration-200 xl:static xl:z-auto xl:w-96",
+          chatOpen ? "translate-x-0" : "pointer-events-none translate-x-full xl:hidden",
+        )}
+      >
+        <AiChatPanel
+          onClose={() => setChatOpen(false)}
+          isOpen={chatOpen}
+          onStatusChange={setChatStatus}
+        />
+      </aside>
+
+      {/* Always-available floating trigger — hidden while the panel itself is open */}
+      {!chatOpen && (
+        <Button
+          size="icon"
+          onClick={toggleChat}
+          aria-label={`Open sell.x chat — ${chatStatus === "review" ? "review needed" : chatStatus}`}
+          className="fixed bottom-6 right-6 z-50 size-14 rounded-full shadow-lg"
+        >
+          <Sparkles className="size-5" />
+          <span
+            className={cn(
+              "absolute right-1 top-1 size-3 rounded-full ring-2 ring-background",
+              STATUS_DOT[chatStatus],
+            )}
+            aria-hidden
           />
-          <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-border bg-card xl:static xl:z-auto xl:w-96">
-            <AiChatPanel onClose={() => setChatOpen(false)} />
-          </aside>
-        </>
+        </Button>
       )}
     </div>
   );
