@@ -3,9 +3,9 @@ const OPENAI_STRUCTURED_MODEL = "gpt-5.4";
 
 type AiEndpoint = "chat/completions" | "responses";
 
-function getOpenAiConfig() {
-  const apiKey = process.env["OPENAI_API_KEY"];
-  const baseUrl = process.env["OPENAI_BASE_URL"]?.replace(/\/+$/, "");
+function getGatewayConfig() {
+  const apiKey = process.env["NETLIFY_AI_GATEWAY_KEY"];
+  const baseUrl = process.env["NETLIFY_AI_GATEWAY_BASE_URL"]?.replace(/\/+$/, "");
 
   if (!apiKey || !baseUrl) {
     throw new Error("AI is not configured on this deployment.");
@@ -23,7 +23,7 @@ function aiErrorMessage(status: number) {
 }
 
 export async function requestNetlifyAi<T>(endpoint: AiEndpoint, body: Record<string, unknown>) {
-  const { apiKey, baseUrl } = getOpenAiConfig();
+  const { apiKey, baseUrl } = getGatewayConfig();
   let response: Response;
 
   try {
