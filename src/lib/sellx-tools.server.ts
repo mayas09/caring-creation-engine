@@ -1,5 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../../db/index.js";
 import {
@@ -225,9 +224,7 @@ function isUuid(value: string) {
 
 async function resolveLead(supabase: AppSupabase, userId: string, reference: string) {
   let query = supabase.from("leads").select("*").eq("user_id", userId);
-  query = isUuid(reference)
-    ? query.eq("id", reference)
-    : query.ilike("business_name", reference.trim());
+  query = isUuid(reference) ? query.eq("id", reference) : query.ilike("business_name", reference.trim());
   const { data, error } = await query.limit(2);
   if (error) throw new Error(error.message);
   if (!data?.length) throw new Error(`Lead not found: ${reference}`);
@@ -262,14 +259,15 @@ async function resolveDraft(supabase: AppSupabase, userId: string, reference: st
   return data;
 }
 
-async function logAction(userId: string, action: string, result: ToolResult, target?: string) {
+async function logAction(supabase: AppSupabase, userId: string, action: string, result: ToolResult, target?: string) {
   try {
-    await db.insert(assistantActionLog).values({
-      userId,
+    await supabase.from("assistant_action_log").insert({
+      user_id: userId,
       action,
       target: target ?? null,
       status: result.ok ? "completed" : "failed",
       detail: { message: result.message },
+      created_at: new Date(),
     });
   } catch (error) {
     console.error(
@@ -286,14 +284,14 @@ export async function executeSellXTool(
 ): Promise<ToolResult> {
   try {
     const result = await execute(context, name, rawArguments);
-    await logAction(context.userId, name, result, getTarget(rawArguments));
+    await logAction(context.supabase, context.userId, name, result, getTarget(rawArguments));
     return result;
   } catch (error) {
     const result = {
       ok: false,
       message: error instanceof Error ? error.message : "Action failed.",
     };
-    await logAction(context.userId, name, result, getTarget(rawArguments));
+    await logAction(context.supabase, context.userId, name, result, getTarget(rawArguments));
     return result;
   }
 }
@@ -430,11 +428,7 @@ async function execute(
       .eq("user_id", userId)
       .eq("id", draft.id);
     if (error) throw new Error(error.message);
-    await supabase
-      .from("leads")
-      .update({ stage: "queued" })
-      .eq("user_id", userId)
-      .eq("id", draft.lead_id);
+    await supabase.from("leads").update({ stage: "queued" }).eq("user_id", userId).eq("id", draft.lead_id);
     return {
       ok: true,
       message: `Queued the draft for ${scheduledAt}. User approval is still required before sending.`,
@@ -476,11 +470,7 @@ async function execute(
     const data = z.object({ draft: z.string() }).parse(args);
     const draft = await resolveDraft(supabase, userId, data.draft);
     if (draft.status === "sent") throw new Error("Sent messages cannot be deleted as drafts.");
-    const { error } = await supabase
-      .from("outreach_messages")
-      .delete()
-      .eq("user_id", userId)
-      .eq("id", draft.id);
+    const { error } = await supabase.from("outreach_messages").delete().eq("user_id", userId).eq("id", draft.id);
     if (error) throw new Error(error.message);
     return { ok: true, message: "Deleted the email draft." };
   }
@@ -488,11 +478,7 @@ async function execute(
   if (name === "change_lead_status") {
     const data = z.object({ lead: z.string(), status: z.enum(LEAD_STAGES) }).parse(args);
     const lead = await resolveLead(supabase, userId, data.lead);
-    const { error } = await supabase
-      .from("leads")
-      .update({ stage: data.status })
-      .eq("user_id", userId)
-      .eq("id", lead.id);
+    const { error } = await supabase.from("leads").update({ stage: data.status }).eq("user_id", userId).eq("id", lead.id);
     if (error) throw new Error(error.message);
     return { ok: true, message: `Moved ${lead.business_name} to ${data.status}.` };
   }
@@ -578,80 +564,63 @@ async function execute(
 
   if (name === "request_settings_change") {
     const { changes } = z.object({ changes: SETTINGS_SCHEMA }).parse(args);
-    const [confirmation] = await db
-      .insert(assistantConfirmation)
-      .values({
-        userId,
-        action: "change_settings",
-        payload: changes,
-        expiresAt: new Date(Date.now() + 15 * 60_000),
-      })
-      .returning({ id: assistantConfirmation.id, expiresAt: assistantConfirmation.expiresAt });
+    const expiresAt = new Date(Date.now() + 15 * 60_000).toISOString();
+    const { data: inserted, error } = await supabase
+      .from("assistant_confirmation")
+      .insert({ user_id: userId, action: "change_settings", payload: changes, expires_at: expiresAt })
+      .select("id,expires_at");
+    if (error) throw new Error(error.message);
+    const confirmation = Array.isArray(inserted) ? inserted[0] : inserted;
     if (!confirmation) throw new Error("Unable to create a settings confirmation.");
     return {
       ok: true,
-      message: `Confirmation required. Ask the user to confirm changes ${JSON.stringify(changes)}. Confirmation ID: ${confirmation.id}. It expires at ${confirmation.expiresAt.toISOString()}.`,
+      message: `Confirmation required. Ask the user to confirm changes ${JSON.stringify(changes)}. Confirmation ID: ${confirmation.id}. It expires at ${confirmation.expires_at}.`,
       data: confirmation,
     };
   }
 
   if (name === "confirm_settings_change") {
     const { confirmation_id } = z.object({ confirmation_id: z.string().uuid() }).parse(args);
-    const [confirmation] = await db
-      .select()
-      .from(assistantConfirmation)
-      .where(
-        and(
-          eq(assistantConfirmation.id, confirmation_id),
-          eq(assistantConfirmation.userId, userId),
-          eq(assistantConfirmation.status, "pending"),
-        ),
-      )
-      .limit(1);
+    const { data: confirmation, error: fetchErr } = await supabase
+      .from("assistant_confirmation")
+      .select("*")
+      .eq("id", confirmation_id)
+      .eq("user_id", userId)
+      .eq("status", "pending")
+      .limit(1)
+      .maybeSingle();
+    if (fetchErr) throw new Error(fetchErr.message);
     if (!confirmation) throw new Error("Pending confirmation not found.");
-    if (confirmation.expiresAt.getTime() < Date.now()) {
-      await db
-        .update(assistantConfirmation)
-        .set({ status: "expired", resolvedAt: new Date() })
-        .where(eq(assistantConfirmation.id, confirmation.id));
+    if (new Date(confirmation.expires_at).getTime() < Date.now()) {
+      await supabase.from("assistant_confirmation").update({ status: "expired", resolved_at: new Date().toISOString() }).eq("id", confirmation.id);
       throw new Error("That confirmation expired. Request the settings change again.");
     }
-    const changes = compactObject(
-      SETTINGS_SCHEMA.parse(confirmation.payload),
-    ) as Database["public"]["Tables"]["user_settings"]["Update"];
-    const { error } = await supabase
-      .from("user_settings")
-      .upsert({ user_id: userId, ...changes }, { onConflict: "user_id" });
-    if (error) throw new Error(error.message);
-    await db
-      .update(assistantConfirmation)
-      .set({ status: "confirmed", resolvedAt: new Date() })
-      .where(eq(assistantConfirmation.id, confirmation.id));
+    const changes = compactObject(SETTINGS_SCHEMA.parse(confirmation.payload)) as Database["public"]["Tables"]["user_settings"]["Update"];
+    const { error: upsertErr } = await supabase.from("user_settings").upsert({ user_id: userId, ...changes }, { onConflict: "user_id" });
+    if (upsertErr) throw new Error(upsertErr.message);
+    await supabase.from("assistant_confirmation").update({ status: "confirmed", resolved_at: new Date().toISOString() }).eq("id", confirmation.id);
     return { ok: true, message: "Applied the confirmed settings change.", data: changes };
   }
 
   if (name === "clear_chat_memory") {
-    await db.delete(conversationMemory).where(eq(conversationMemory.userId, userId));
+    await supabase.from("conversation_memory").delete().eq("user_id", userId);
     const { error } = await supabase.from("chat_messages").delete().eq("user_id", userId);
     if (error) throw new Error(error.message);
     return { ok: true, message: "Cleared stored chat and conversation memory." };
   }
 
   if (name === "pause_automation") {
-    const data = z
-      .object({ paused: z.boolean(), reason: z.string().max(500).optional() })
-      .parse(args);
-    await db
-      .insert(assistantAutomationState)
-      .values({ userId, paused: data.paused, reason: data.reason ?? null })
-      .onConflictDoUpdate({
-        target: assistantAutomationState.userId,
-        set: { paused: data.paused, reason: data.reason ?? null, updatedAt: new Date() },
-      });
-    const { error } = await supabase
-      .from("campaigns")
-      .update({ is_active: !data.paused })
-      .eq("user_id", userId);
+    const data = z.object({ paused: z.boolean(), reason: z.string().max(500).optional() }).parse(args);
+    // Use upsert to emulate onConflictDoUpdate from drizzle
+    const upsertPayload = {
+      user_id: userId,
+      paused: data.paused,
+      reason: data.reason ?? null,
+      updated_at: new Date().toISOString(),
+    };
+    const { error: upsertErr } = await supabase.from("assistant_automation_state").upsert([upsertPayload], { onConflict: "user_id" });
+    if (upsertErr) throw new Error(upsertErr.message);
+    const { error } = await supabase.from("campaigns").update({ is_active: !data.paused }).eq("user_id", userId);
     if (error) throw new Error(error.message);
     return {
       ok: true,
