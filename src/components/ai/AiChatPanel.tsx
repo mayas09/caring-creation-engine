@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Sparkles, X, Send } from "lucide-react";
@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { sellxChat } from "@/lib/ai.functions";
+import { cn } from "@/lib/utils";
 
 type Msg = { role: "user" | "assistant"; content: string };
+export type ChatStatus = "online" | "working" | "review";
 
 const QUICK = [
   "Explain this lead's ordering gap",
@@ -15,17 +17,40 @@ const QUICK = [
   "Draft a short, respectful opener",
 ];
 
-export function AiChatPanel({ onClose, leadContext }: { onClose?: (() => void) | undefined; leadContext?: string | undefined }) {
+const STATUS_COPY: Record<ChatStatus, { label: string; dot: string }> = {
+  online: { label: "Online", dot: "bg-emerald-500" },
+  working: { label: "Working", dot: "bg-amber-500" },
+  review: { label: "Review needed", dot: "bg-red-500" },
+};
+
+export function AiChatPanel({
+  onClose,
+  leadContext,
+  isOpen = true,
+  onStatusChange,
+}: {
+  onClose?: (() => void) | undefined;
+  leadContext?: string | undefined;
+  isOpen?: boolean;
+  onStatusChange?: (status: ChatStatus) => void;
+}) {
   const chat = useServerFn(sellxChat);
   const [messages, setMessages] = useState<Msg[]>([
     {
       role: "assistant",
       content:
-        "I'm sell.x — your research partner. I label every claim as Verified, Calculated, Inferred, or Unknown. Ask me about a lead, an ordering gap, or outreach copy.",
+        "I'm sell.x — your research partner. I find signals, not truths. I label every claim as Verified, Calculated, Inferred, or Unknown. Ask me about a lead, an ordering gap, or outreach copy.",
     },
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const isOpenRef = useRef(isOpen);
+
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+    if (isOpen && !busy) onStatusChange?.("online");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   async function send(text: string) {
     const content = text.trim();
@@ -34,25 +59,39 @@ export function AiChatPanel({ onClose, leadContext }: { onClose?: (() => void) |
     setMessages(next);
     setInput("");
     setBusy(true);
+    onStatusChange?.("working");
     try {
       const res = await chat({ data: { messages: next, leadContext } });
       setMessages([...next, { role: "assistant", content: res.content }]);
+      onStatusChange?.(isOpenRef.current ? "online" : "review");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "AI request failed");
       setMessages(messages);
+      onStatusChange?.(isOpenRef.current ? "online" : "review");
     } finally {
       setBusy(false);
     }
   }
+
+  const status: ChatStatus = busy ? "working" : "online";
 
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-14 items-center gap-2 border-b border-border px-4">
         <Sparkles className="size-4 text-primary" />
         <span className="text-sm font-semibold">sell.x</span>
-        <span className="text-xs text-muted-foreground">research partner</span>
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className={cn("size-1.5 rounded-full", STATUS_COPY[status].dot)} aria-hidden />
+          {STATUS_COPY[status].label}
+        </span>
         {onClose && (
-          <Button variant="ghost" size="icon" className="ml-auto" onClick={onClose} aria-label="Close chat">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-auto"
+            onClick={onClose}
+            aria-label="Close chat"
+          >
             <X className="size-4" />
           </Button>
         )}
@@ -72,7 +111,9 @@ export function AiChatPanel({ onClose, leadContext }: { onClose?: (() => void) |
               {m.content}
             </div>
           ))}
-          {busy && <p className="text-xs text-muted-foreground">sell.x is checking the evidence…</p>}
+          {busy && (
+            <p className="text-xs text-muted-foreground">sell.x is checking the evidence…</p>
+          )}
         </div>
       </ScrollArea>
 
