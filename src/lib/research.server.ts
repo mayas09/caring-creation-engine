@@ -1,8 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SELLX_SYSTEM_PROMPT } from "./ai.server";
-
-const RESPONSES_URL = "https://ai.gateway.lovable.dev/v1/responses";
-const MODEL = "openai/gpt-5.6-sol";
+import { requestNetlifyAi, structuredModel } from "./netlify-ai.server";
 
 type JsonSchema = Record<string, unknown>;
 
@@ -13,37 +11,24 @@ export async function structuredCall<T>(opts: {
   schemaName: string;
   schema: JsonSchema;
 }): Promise<T> {
-  const apiKey = process.env["LOVABLE_API_KEY"];
-  if (!apiKey) throw new Error("AI is not configured.");
-
-  const res = await fetch(RESPONSES_URL, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: MODEL,
-      input: [
-        { role: "system", content: opts.system },
-        { role: "user", content: opts.user },
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: opts.schemaName,
-          strict: true,
-          schema: opts.schema,
-        },
-      },
-    }),
-  });
-
-  if (res.status === 429) throw new Error("Rate limit reached. Try again shortly.");
-  if (res.status === 402) throw new Error("AI credits exhausted. Add credits to continue.");
-  if (!res.ok) throw new Error(`AI request failed (${res.status}): ${await res.text()}`);
-
-  const json = (await res.json()) as {
+  const json = await requestNetlifyAi<{
     output_text?: string;
     output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>;
-  };
+  }>("responses", {
+    model: structuredModel(),
+    input: [
+      { role: "system", content: opts.system },
+      { role: "user", content: opts.user },
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: opts.schemaName,
+        strict: true,
+        schema: opts.schema,
+      },
+    },
+  });
 
   const text =
     json.output_text ??
@@ -61,7 +46,8 @@ export async function structuredCall<T>(opts: {
 const EVIDENCE_TYPE = ["verified", "calculated", "inferred", "unknown"] as const;
 
 type AuditResult = {
-  classification: "opportunity" | "strong_opportunity" | "medium_opportunity" | "low_priority" | "bad_fit";
+  classification:
+    "opportunity" | "strong_opportunity" | "medium_opportunity" | "low_priority" | "bad_fit";
   priority: "high" | "medium" | "low";
   best_angle: string;
   why_this_lead: string[];
@@ -81,7 +67,12 @@ type AuditResult = {
     confidence: "high" | "medium" | "low" | "none";
     source: string;
   }>;
-  friction_points: Array<{ point: string; level: "high" | "medium" | "low"; evidence: string; source: string }>;
+  friction_points: Array<{
+    point: string;
+    level: "high" | "medium" | "low";
+    evidence: string;
+    source: string;
+  }>;
   evidence: Array<{
     claim: string;
     type: (typeof EVIDENCE_TYPE)[number];
@@ -191,14 +182,17 @@ function evidenceCode(seq: number, date = new Date()): string {
 
 /** Runs an evidence audit for one lead and persists gap, signals, friction and the evidence ledger. */
 export async function auditLead(supabase: SupabaseClient, userId: string, leadId: string) {
-  const { data: lead, error } = await supabase.from("leads").select("*").eq("id", leadId).maybeSingle();
+  const { data: lead, error } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("id", leadId)
+    .maybeSingle();
   if (error) throw new Error(error.message);
   if (!lead) throw new Error("Lead not found.");
 
   const { scrapePage, extractPageFacts, webSearch } = await import("./providers.server");
   const DIRECTORY =
     /tripadvisor|yelp|yellowpages|foursquare|zomato|wikipedia|reddit|facebook\.com|instagram\.com|google\.[a-z]|ubereats|deliveroo|glovo|justeat|doordash|thefork|opentable/i;
-
 
   // 1) Live observation: scrape the site, or search for it when we have no URL.
   let siteUrl: string | null = lead.website ?? null;
@@ -208,7 +202,8 @@ export async function auditLead(supabase: SupabaseClient, userId: string, leadId
       `${lead.business_name} ${lead.city ?? ""} ${lead.industry ?? ""} official website`.trim(),
       5,
     ).catch(() => []);
-    searchNote = hits.map((h) => `- ${h.title} — ${h.url}\n  ${h.description}`).join("\n") || "- none";
+    searchNote =
+      hits.map((h) => `- ${h.title} — ${h.url}\n  ${h.description}`).join("\n") || "- none";
     const own = hits.find((h) => !DIRECTORY.test(h.url));
     siteUrl = own?.url ?? null;
   }
@@ -238,7 +233,9 @@ export async function auditLead(supabase: SupabaseClient, userId: string, leadId
 - "Order online" wording present: ${facts.hasOrderWord}
 - Contact emails on page: ${facts.emails.join(", ") || "none"}
 - Phones on page: ${facts.phones.join(", ") || "none"}
-- Socials: ${Object.entries(facts.socials).map(([k, v]) => `${k}=${v ?? "none"}`).join(", ")}
+- Socials: ${Object.entries(facts.socials)
+        .map(([k, v]) => `${k}=${v ?? "none"}`)
+        .join(", ")}
 
 PAGE CONTENT EXCERPT:
 ${pageExcerpt}`
@@ -305,13 +302,14 @@ Rules:
         new Set([...facts.thirdParty, ...result.ordering_gap.third_party_platforms]),
       );
     }
-    result.ordering_gap.website_found = facts.reachable ? "verified" : result.ordering_gap.website_found;
+    result.ordering_gap.website_found = facts.reachable
+      ? "verified"
+      : result.ordering_gap.website_found;
     if (facts.menuLinks.length || facts.hasMenuWord) result.ordering_gap.menu_found = "verified";
   }
 
   const gap = result.ordering_gap;
   const codes = result.evidence.map((_, i) => evidenceCode(i + 1, now));
-
 
   await supabase.from("evidence").delete().eq("lead_id", leadId).eq("user_id", userId);
   if (result.evidence.length > 0) {
@@ -398,8 +396,6 @@ Rules:
       ...(facts?.socials.facebook && !lead.facebook && !isDirectory
         ? { facebook: facts.socials.facebook }
         : {}),
-
-
     })
     .eq("id", leadId);
 
@@ -435,7 +431,11 @@ export type Verification = {
 };
 
 /** Deterministic honesty check: unsupported numbers, hype words and length. */
-export function verifyMessage(body: string, subject: string, evidenceClaims: string[]): Verification {
+export function verifyMessage(
+  body: string,
+  subject: string,
+  evidenceClaims: string[],
+): Verification {
   const issues: string[] = [];
   const text = `${subject}\n${body}`;
   const haystack = evidenceClaims.join(" ").toLowerCase();
@@ -452,7 +452,8 @@ export function verifyMessage(body: string, subject: string, evidenceClaims: str
   const wordCount = body.trim().split(/\s+/).filter(Boolean).length;
   if (wordCount > 180) issues.push(`Body is ${wordCount} words — keep outreach under 180.`);
   if (subject.length > 60) issues.push(`Subject is ${subject.length} chars — keep it under 60.`);
-  if (evidenceClaims.length === 0) issues.push("No evidence on file for this lead — draft is unsupported.");
+  if (evidenceClaims.length === 0)
+    issues.push("No evidence on file for this lead — draft is unsupported.");
 
   return { passed: issues.length === 0, issues, numbers: unsupported, wordCount };
 }
@@ -463,7 +464,11 @@ export async function draftAndStoreMessage(
   userId: string,
   opts: { leadId: string; campaignId?: string; style: string; ctaStyle: string },
 ) {
-  const { data: lead } = await supabase.from("leads").select("*").eq("id", opts.leadId).maybeSingle();
+  const { data: lead } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("id", opts.leadId)
+    .maybeSingle();
   if (!lead) throw new Error("Lead not found.");
   if (lead.do_not_contact) throw new Error("This lead is marked do-not-contact.");
 

@@ -1,9 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { executeSellXTool, SELLX_TOOLS } from "./sellx-tools.server";
-
-const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL = "google/gemini-2.5-flash";
+import { chatModel, requestNetlifyAi } from "./netlify-ai.server";
 
 export const SELLX_SYSTEM_PROMPT = `You are sell.x, a research partner for a single freelance developer selling custom websites and direct-ordering systems to small businesses.
 
@@ -63,11 +61,8 @@ type AgentMessage =
   | { role: "tool"; content: string; tool_call_id: string };
 
 export async function callSellX(messages: ChatMessage[], leadContext?: string) {
-  const apiKey = process.env["LOVABLE_API_KEY"];
-  if (!apiKey) throw new Error("AI is not configured.");
-
   const payload = {
-    model: MODEL,
+    model: chatModel(),
     messages: [
       { role: "system", content: SELLX_SYSTEM_PROMPT },
       ...(leadContext
@@ -82,20 +77,12 @@ export async function callSellX(messages: ChatMessage[], leadContext?: string) {
     ],
   };
 
-  const res = await fetch(GATEWAY, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (res.status === 429) throw new Error("Rate limit reached. Try again shortly.");
-  if (res.status === 402) throw new Error("AI credits exhausted. Add credits in settings.");
-  if (!res.ok) throw new Error(`AI request failed (${res.status}).`);
-
-  const json = (await res.json()) as {
+  const json = await requestNetlifyAi<{
     choices?: Array<{ message?: { content?: string } }>;
-  };
-  return { content: json.choices?.[0]?.message?.content ?? "" };
+  }>("chat/completions", payload);
+  const content = json.choices?.[0]?.message?.content?.trim();
+  if (!content) throw new Error("The AI service returned an empty response.");
+  return { content };
 }
 
 export async function callSellXAgent(
@@ -104,9 +91,6 @@ export async function callSellXAgent(
   messages: ChatMessage[],
   leadContext?: string,
 ) {
-  const apiKey = process.env["LOVABLE_API_KEY"];
-  if (!apiKey) throw new Error("AI is not configured.");
-
   const conversation: AgentMessage[] = [
     { role: "system", content: SELLX_SYSTEM_PROMPT },
     ...(leadContext
@@ -122,24 +106,14 @@ export async function callSellXAgent(
   let clearedMemory = false;
 
   for (let round = 0; round < 8; round += 1) {
-    const res = await fetch(GATEWAY, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: conversation,
-        tools: SELLX_TOOLS,
-        tool_choice: "auto",
-      }),
-    });
-
-    if (res.status === 429) throw new Error("Rate limit reached. Try again shortly.");
-    if (res.status === 402) throw new Error("AI credits exhausted. Add credits in settings.");
-    if (!res.ok) throw new Error(`AI request failed (${res.status}).`);
-
-    const json = (await res.json()) as {
+    const json = await requestNetlifyAi<{
       choices?: Array<{ message?: { content?: string | null; tool_calls?: ToolCall[] } }>;
-    };
+    }>("chat/completions", {
+      model: chatModel(),
+      messages: conversation,
+      tools: SELLX_TOOLS,
+      tool_choice: "auto",
+    });
     const message = json.choices?.[0]?.message;
     if (!message) throw new Error("AI returned an empty response.");
     if (!message.tool_calls?.length) {
