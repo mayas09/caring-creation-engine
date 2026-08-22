@@ -12,9 +12,9 @@ type Msg = { role: "user" | "assistant"; content: string };
 export type ChatStatus = "online" | "working" | "review";
 
 const QUICK = [
-  "Explain this lead's ordering gap",
-  "What evidence is missing here?",
-  "Draft a short, respectful opener",
+  "Find bakeries in Raleigh",
+  "Draft an email for [Business Name]",
+  "Export my leads to CSV",
 ];
 
 const STATUS_COPY: Record<ChatStatus, { label: string; dot: string }> = {
@@ -39,7 +39,7 @@ export function AiChatPanel({
     {
       role: "assistant",
       content:
-        "I'm sell.x — your research partner. I find signals, not truths. I label every claim as Verified, Calculated, Inferred, or Unknown. Ask me about a lead, an ordering gap, or outreach copy.",
+        "I'm sell.x — your autonomous sales assistant. I can manage leads, draft and queue outreach, run discovery and verification, export leads, schedule follow-ups, and pause automation. I never send email without your approval, and I always ask before changing settings.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -62,7 +62,11 @@ export function AiChatPanel({
     onStatusChange?.("working");
     try {
       const res = await chat({ data: { messages: next, leadContext } });
-      setMessages([...next, { role: "assistant", content: res.content }]);
+      setMessages(
+        res.clearedMemory
+          ? [{ role: "assistant", content: res.content }]
+          : [...next, { role: "assistant", content: res.content }],
+      );
       onStatusChange?.(isOpenRef.current ? "online" : "review");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "AI request failed");
@@ -112,7 +116,9 @@ export function AiChatPanel({
             </div>
           ))}
           {busy && (
-            <p className="text-xs text-muted-foreground">sell.x is checking the evidence…</p>
+            <p className="text-xs text-muted-foreground">
+              sell.x is checking evidence and running the requested actions…
+            </p>
           )}
         </div>
       </ScrollArea>
@@ -139,7 +145,7 @@ export function AiChatPanel({
                 void send(input);
               }
             }}
-            placeholder="Ask about a lead, gap, or message…"
+            placeholder="Ask sell.x to research or take action…"
             className="min-h-[44px] resize-none"
           />
           <Button size="icon" onClick={() => void send(input)} disabled={busy} aria-label="Send">

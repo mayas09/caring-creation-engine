@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { callSellX } from "./ai.server";
+import { callSellXAgent } from "./ai.server";
 
 const chatSchema = z.object({
   messages: z
@@ -18,5 +18,6 @@ const chatSchema = z.object({
 export const sellxChat = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => chatSchema.parse(data))
-  .handler(async ({ data }) => callSellX(data.messages, data.leadContext));
-
+  .handler(async ({ data, context }) =>
+    callSellXAgent(context.supabase, context.userId, data.messages, data.leadContext),
+  );
